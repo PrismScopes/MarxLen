@@ -405,7 +405,7 @@ class RAGPipeline:
                 "title": title_full or meta.get('title', ''),
                 "author": source_name,
                 "chapter": meta.get('chapter', ''),
-                "score": doc.get('rerank_score', doc.get('score', 0)),
+                "score": doc.get('rerank_score', 0.0),
                 "excerpt": self._clean_text(doc.get('text', '')[:300]),
                 "source_url": "",
             })

@@ -245,6 +245,9 @@ class HybridRetriever:
             results = data.get("results", [])
             # API 已按 relevance_score 降序返回，此处仅防御性排序
             if results:
+                for r in results:
+                    if "relevance_score" not in r and "score" in r:
+                        r["relevance_score"] = r["score"]
                 results.sort(key=lambda x: x.get("relevance_score", 0), reverse=True)
 
             return [

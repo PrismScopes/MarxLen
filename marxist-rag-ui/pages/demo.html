@@ -1,0 +1,2811 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarxLen - 马列通 (纯 UI 演示)</title>
+
+    <!-- Google Fonts: Noto Serif SC (title) + Noto Sans SC (body) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <style id="theme-vars">
+/* ============================================
+   Marxist RAG Knowledge Base - Brand Design System
+   Theme: Advanced Red + White (Marxist Theory)
+   Tone: Editorial / Academic / Solemn
+   ============================================ */
+
+:root {
+  /* --- Primary Color System --- */
+  --color-primary: #8B1A1A;
+  --color-primary-light: #A52828;
+  --color-primary-lighter: #C44040;
+  --color-primary-dark: #6B1010;
+  --color-primary-darker: #4A0A0A;
+  --color-primary-50: rgba(139, 26, 26, 0.05);
+  --color-primary-100: rgba(139, 26, 26, 0.10);
+  --color-primary-200: rgba(139, 26, 26, 0.20);
+  --color-primary-500: rgba(139, 26, 26, 0.50);
+  --color-primary-700: rgba(139, 26, 26, 0.70);
+  --color-primary-900: rgba(139, 26, 26, 0.90);
+
+  /* --- Neutral Color System --- */
+  --color-bg: #FFFFFF;
+  --color-bg-secondary: #F9F7F5;
+  --color-bg-tertiary: #F3F0EC;
+  --color-bg-elevated: #FFFFFF;
+  --color-surface: #FFFFFF;
+  --color-surface-secondary: #F5F2EE;
+  --color-border: #E8E2DA;
+  --color-border-light: #F0ECE6;
+  --color-border-dark: #D1C9BE;
+  --color-text-primary: #1A1410;
+  --color-text-secondary: #5C5347;
+  --color-text-tertiary: #8A8078;
+  --color-text-inverse: #FFFFFF;
+  --color-text-on-primary: #FFFFFF;
+  --color-text-link: #8B1A1A;
+  --color-text-link-hover: #6B1010;
+
+  /* --- State Colors --- */
+  --state-success: #2D6A4F;
+  --state-warning: #B45309;
+  --state-error: #B91C1C;
+  --state-info: #1E5A8A;
+
+  /* --- Typography System --- */
+  --font-family-title: 'Noto Serif SC', 'Source Han Serif SC', 'SimSun', Georgia, serif;
+  --font-family-body: 'Noto Sans SC', 'Source Han Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-family-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+
+  --font-size-display: 2.5rem;
+  --font-size-h1: 2rem;
+  --font-size-h2: 1.5rem;
+  --font-size-h3: 1.25rem;
+  --font-size-h4: 1.125rem;
+  --font-size-body: 0.9375rem;
+  --font-size-body-sm: 0.875rem;
+  --font-size-caption: 0.75rem;
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.6;
+  --line-height-relaxed: 1.8;
+  --letter-spacing-tight: -0.02em;
+  --letter-spacing-normal: 0;
+  --letter-spacing-wide: 0.05em;
+
+  /* --- Radius System --- */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+
+  /* --- Spacing System --- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
+  --space-24: 6rem;
+
+  /* --- Shadow System (static alpha <= 0.05) --- */
+  --shadow-sm: 0 1px 2px rgba(26, 20, 16, 0.04);
+  --shadow-md: 0 2px 8px rgba(26, 20, 16, 0.05);
+  --shadow-lg: 0 8px 24px rgba(26, 20, 16, 0.05);
+  --shadow-float: 0 12px 40px rgba(26, 20, 16, 0.10);
+  --shadow-none: none;
+
+  /* --- Transition --- */
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+  --transition-slow: 350ms ease;
+}
+
+/* --- Dark Mode --- */
+.dark {
+  --color-primary: #D44040;
+  --color-primary-light: #E05555;
+  --color-primary-lighter: #F07070;
+  --color-primary-dark: #B83030;
+  --color-primary-darker: #901818;
+  --color-primary-50: rgba(212, 64, 64, 0.08);
+  --color-primary-100: rgba(212, 64, 64, 0.15);
+  --color-primary-200: rgba(212, 64, 64, 0.25);
+  --color-primary-500: rgba(212, 64, 64, 0.55);
+  --color-primary-700: rgba(212, 64, 64, 0.75);
+  --color-primary-900: rgba(212, 64, 64, 0.92);
+
+  --color-bg: #121010;
+  --color-bg-secondary: #1A1816;
+  --color-bg-tertiary: #222018;
+  --color-bg-elevated: #1E1C1A;
+  --color-surface: #1E1C1A;
+  --color-surface-secondary: #262420;
+  --color-border: #332E28;
+  --color-border-light: #2A2620;
+  --color-border-dark: #443E36;
+  --color-text-primary: #F0ECE6;
+  --color-text-secondary: #B5ADA2;
+  --color-text-tertiary: #7A7268;
+  --color-text-inverse: #121010;
+  --color-text-on-primary: #FFFFFF;
+  --color-text-link: #E05555;
+  --color-text-link-hover: #F07070;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.20);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.30);
+  --shadow-float: 0 12px 40px rgba(0, 0, 0, 0.40);
+}
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
+    <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style type="text/tailwindcss">
+  @theme inline {
+    --color-primary: var(--color-primary);
+    --color-border: var(--color-border);
+  }
+  @layer base {
+    body { background: var(--color-surface); color: var(--color-text-primary); }
+    td, th { @apply break-words; word-break: break-all; word-break: auto-phrase; }
+    th { @apply whitespace-nowrap; }
+  }
+    </style>
+    <style>
+      /* ============================================
+         Chat Interface - Base Reset
+         ============================================ */
+      *, *::before, *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html, body {
+        height: 100%;
+        overflow: hidden;
+        font-family: var(--font-family-body);
+        background-color: var(--color-bg);
+        color: var(--color-text-primary);
+        line-height: var(--line-height-normal);
+      }
+
+      [data-icon] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        background-color: currentColor;
+      }
+
+      /* ============================================
+         Layout: Sidebar + Main
+         ============================================ */
+      .chat-layout {
+        display: flex;
+        height: 100vh;
+        width: 100%;
+      }
+
+      /* ============================================
+         Left Sidebar
+         ============================================ */
+      .chat-sidebar {
+        width: 260px;
+        min-width: 260px;
+        height: 100vh;
+        background-color: var(--color-primary-darker);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        transition: transform var(--transition-normal), opacity var(--transition-normal);
+        z-index: 40;
+      }
+
+      .chat-sidebar-header {
+        padding: 20px 16px 12px 16px;
+        flex-shrink: 0;
+      }
+
+      .sidebar-logo-main {
+        font-family: var(--font-family-title);
+        font-size: 1.125rem;
+        font-weight: 700;
+        color: #FFFFFF;
+        letter-spacing: var(--letter-spacing-wide);
+        line-height: 1.3;
+      }
+
+      .sidebar-logo-sub {
+        font-family: var(--font-family-body);
+        font-size: var(--font-size-caption);
+        color: rgba(255, 255, 255, 0.55);
+        font-weight: 400;
+        line-height: 1.3;
+        margin-top: 2px;
+      }
+
+      .new-chat-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        margin-top: 16px;
+        padding: 10px 16px;
+        background-color: var(--color-primary);
+        color: var(--color-text-on-primary);
+        border: none;
+        border-radius: var(--radius-lg);
+        font-family: var(--font-family-body);
+        font-size: var(--font-size-body-sm);
+        font-weight: var(--font-weight-medium);
+        cursor: pointer;
+        transition: background-color var(--transition-fast);
+        flex-shrink: 0;
+      }
+
+      .new-chat-btn:hover {
+        background-color: var(--color-primary-dark);
+      }
+
+      .new-chat-btn svg,
+      .new-chat-btn i {
+        width: 16px;
+        height: 16px;
+      }
+
+      /* History section */
+      .chat-history-section {
+        flex: 1;
+        overflow-y: auto;
+        padding: 8px 10px;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+      }
+
+      .chat-history-section::-webkit-scrollbar {
+        width: 4px;
+      }
+
+      .chat-history-section::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      .chat-history-section::-webkit-scrollbar-thumb {
+        background-color: rgba(255, 255, 255, 0.15);
+        border-radius: 2px;
+      }
+
+      /* ── Sidebar Folder Groups ─────────────────────────── */
+
+      /* Group section header */
+      .history-group-section {
+        margin-bottom: 4px;
+      }
+      .history-group-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 6px 10px 2px 10px;
+      }
+      .history-group-title {
+        font-size: 11px;
+        color: rgba(255,255,255,0.3);
+        font-weight: var(--font-weight-medium);
+        letter-spacing: 0.02em;
+      }
+      .history-group-add-btn {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        padding: 2px 8px;
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: var(--radius-sm);
+        background: transparent;
+        color: rgba(255,255,255,0.35);
+        font-size: 11px;
+        cursor: pointer;
+        transition: all var(--transition-fast);
+      }
+      .history-group-add-btn:hover {
+        color: rgba(255,255,255,0.6);
+        border-color: rgba(255,255,255,0.2);
+        background-color: rgba(255,255,255,0.06);
+      }
+      .history-group-add-btn svg, .history-group-add-btn i {
+        width: 12px;
+        height: 12px;
+      }
+
+      /* Folder row */
+      .history-folder {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: background-color var(--transition-fast);
+        color: rgba(255,255,255,0.55);
+        font-size: var(--font-size-body-sm);
+      }
+      .history-folder:hover {
+        background-color: rgba(255,255,255,0.06);
+        color: rgba(255,255,255,0.75);
+      }
+      .history-folder.open .folder-arrow {
+        transform: rotate(90deg);
+      }
+      .folder-arrow {
+        width: 12px;
+        height: 12px;
+        flex-shrink: 0;
+        transition: transform var(--transition-fast);
+        opacity: 0.5;
+      }
+      .folder-icon {
+        width: 14px;
+        height: 14px;
+        flex-shrink: 0;
+        opacity: 0.6;
+      }
+      .folder-name {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .folder-count {
+        font-size: 10px;
+        color: rgba(255,255,255,0.25);
+        flex-shrink: 0;
+      }
+      .folder-children {
+        padding-left: 18px;
+        display: none;
+      }
+      .history-folder.open .folder-children {
+        display: block;
+      }
+
+      /* Time group label (for ungrouped items) */
+      .history-time-group {
+        font-size: 11px;
+        color: rgba(255,255,255,0.25);
+        padding: 10px 10px 4px 10px;
+        font-weight: var(--font-weight-medium);
+      }
+
+      /* History item (conversation row) */
+      .history-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 10px;
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: background-color var(--transition-fast);
+        color: rgba(255,255,255,0.55);
+        font-size: var(--font-size-body-sm);
+        line-height: 1.4;
+        position: relative;
+      }
+      .history-item:hover {
+        background-color: rgba(255,255,255,0.06);
+        color: rgba(255,255,255,0.8);
+      }
+      .history-item.active {
+        background-color: rgba(255,255,255,0.08);
+        color: rgba(255,255,255,0.9);
+      }
+      .history-item-text {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        flex: 1;
+        min-width: 0;
+      }
+
+      /* Three-dot menu trigger */
+      .history-item-more {
+        display: none;
+        margin-left: auto;
+        padding: 2px;
+        color: rgba(255,255,255,0.3);
+        cursor: pointer;
+        flex-shrink: 0;
+        border-radius: var(--radius-sm);
+        transition: color var(--transition-fast);
+      }
+      .history-item:hover .history-item-more {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .history-item-more:hover {
+        color: rgba(255,255,255,0.6);
+      }
+      .history-item-more svg, .history-item-more i {
+        width: 14px;
+        height: 14px;
+      }
+
+      /* Context dropdown menu */
+      .ctx-menu {
+        position: absolute;
+        right: 4px;
+        top: 100%;
+        z-index: 300;
+        min-width: 140px;
+        background-color: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+        padding: 4px 0;
+        overflow: hidden;
+      }
+      .ctx-menu-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 12px;
+        font-size: 13px;
+        color: var(--color-text-secondary);
+        cursor: pointer;
+        transition: all var(--transition-fast);
+        white-space: nowrap;
+      }
+      .ctx-menu-item svg, .ctx-menu-item i {
+        width: 14px;
+        height: 14px;
+        flex-shrink: 0;
+      }
+      .ctx-menu-item:hover {
+        background-color: var(--color-bg-tertiary);
+        color: var(--color-text-primary);
+      }
+      .ctx-menu-item.danger {
+        color: #dc3545;
+      }
+      .ctx-menu-item.danger:hover {
+        background-color: rgba(220,53,69,0.08);
+        color: #b02a37;
+      }
+      .ctx-menu-sep {
+        height: 1px;
+        background-color: var(--color-border-light);
+        margin: 3px 0;
+      }
+
+      /* Sidebar bottom */
+      .chat-sidebar-footer {
+        padding: 12px 16px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      /* Sidebar collapse toggle */
+      .sidebar-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border: none;
+        background: transparent;
+        color: rgba(255, 255, 255, 0.4);
+        cursor: pointer;
+        border-radius: var(--radius-sm);
+        transition: all var(--transition-fast);
+        margin: 0 auto;
+        flex-shrink: 0;
+      }
+      .sidebar-toggle:hover {
+        color: rgba(255, 255, 255, 0.7);
+        background-color: rgba(255, 255, 255, 0.08);
+      }
+      .sidebar-toggle svg, .sidebar-toggle i {
+        width: 16px;
+        height: 16px;
+        transition: transform var(--transition-normal);
+      }
+      .sidebar-toggle.collapsed svg,
+      .sidebar-toggle.collapsed i {
+        transform: rotate(180deg);
+      }
+
+      /* When sidebar is collapsed, keep toggle visible outside */
+      .chat-sidebar.collapsed .sidebar-toggle {
+        position: fixed;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%) rotate(0deg);
+        width: 24px;
+        height: 48px;
+        background-color: var(--color-bg-secondary, #f5f5f5);
+        color: var(--color-text-tertiary);
+        border-radius: 0 var(--radius-md) var(--radius-md) 0;
+        z-index: 200;
+        opacity: 1;
+        pointer-events: auto;
+        box-shadow: 2px 0 8px rgba(0,0,0,0.06);
+      }
+      .chat-sidebar.collapsed .sidebar-toggle:hover {
+        background-color: var(--color-bg-tertiary, #eee);
+        color: var(--color-text-secondary);
+      }
+      .chat-sidebar.collapsed .sidebar-toggle svg,
+      .chat-sidebar.collapsed .sidebar-toggle i {
+        transform: rotate(0deg) !important;
+      }
+
+      /* Collapsed sidebar state */
+      .chat-sidebar.collapsed {
+        width: 0;
+        min-width: 0;
+        overflow: hidden;
+        padding: 0;
+      }
+      .chat-sidebar.collapsed .chat-sidebar-header,
+      .chat-sidebar.collapsed .chat-sidebar-history,
+      .chat-sidebar.collapsed .chat-sidebar-footer > *:not(.sidebar-toggle) {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .sidebar-settings-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        padding: 8px 10px;
+        background: transparent;
+        border: none;
+        border-radius: var(--radius-md);
+        color: rgba(255, 255, 255, 0.5);
+        font-family: var(--font-family-body);
+        font-size: var(--font-size-body-sm);
+        cursor: pointer;
+        transition: background-color var(--transition-fast), color var(--transition-fast);
+      }
+
+      .sidebar-settings-btn:hover {
+        background-color: rgba(255, 255, 255, 0.08);
+        color: rgba(255, 255, 255, 0.8);
+      }
+
+      .sidebar-settings-btn svg,
+      .sidebar-settings-btn i {
+        width: 16px;
+        height: 16px;
+      }
+
+      /* ============================================
+         Main Chat Area
+         ============================================ */
+      .chat-main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        min-width: 0;
+        background-color: var(--color-bg);
+      }
+
+      /* ============================================
+         Top Bar
+         ============================================ */
+      .chat-topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 52px;
+        min-height: 52px;
+        padding: 0 20px;
+        border-bottom: 1px solid var(--color-border-light);
+        background-color: var(--color-bg);
+        flex-shrink: 0;
+      }
+
+      .topbar-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      /* Mobile hamburger */
+      .hamburger-btn {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border: none;
+        background: transparent;
+        border-radius: var(--radius-md);
+        color: var(--color-text-secondary);
+        cursor: pointer;
+        transition: background-color var(--transition-fast);
+      }
+
+      .hamburger-btn:hover {
+        background-color: var(--color-bg-tertiary);
+      }
+
+      .hamburger-btn svg,
+      .hamburger-btn i {
+        width: 20px;
+        height: 20px;
+      }
+
+      /* Model selector (inside input box toolbar) */
+      .model-selector-wrapper {
+        position: relative;
+      }
+
+      .model-selector {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border: none;
+        border-radius: var(--radius-md);
+        background-color: transparent;
+        cursor: pointer;
+        transition: background-color var(--transition-fast);
+        user-select: none;
+      }
+
+      .model-selector:hover {
+        background-color: var(--color-bg-tertiary);
+      }
+
+      .model-selector:focus-within {
+        background-color: var(--color-bg-tertiary);
+      }
+
+      .model-selector-name {
+        font-family: var(--font-family-body);
+        font-size: var(--font-size-caption);
+        font-weight: var(--font-weight-medium);
+        color: var(--color-text-tertiary);
+      }
+
+      .model-selector svg,
+      .model-selector i {
+        width: 12px;
+        height: 12px;
+        color: var(--color-text-tertiary);
+      }
+
+      /* Model dropdown */
+      .model-dropdown {
+        display: none;
+        position: absolute;
+        bottom: 100%;
+        left: 0;
+        margin-bottom: var(--space-2);
+        background-color: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+        min-width: 180px;
+        z-index: 100;
+        overflow: hidden;
+      }
+      .model-dropdown.open {
+        display: block;
+      }
+      .model-dropdown-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: var(--space-3) var(--space-4);
+        cursor: pointer;
+        font-size: var(--font-size-body-sm);
+        color: var(--color-text-primary);
+        transition: background-color var(--transition-fast);
+      }
+      .model-dropdown-item:hover {
+        background-color: var(--color-bg-tertiary);
+      }
+      .model-dropdown-item.active {
+        color: var(--color-primary);
+        font-weight: var(--font-weight-medium);
+      }
+
+      .topbar-right {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      /* ============================================
+         Chat Messages Area
+         ============================================ */
+      .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        scrollbar-width: thin;
+        scrollbar-color: var(--color-border) transparent;
+        position: relative;
+      }
+
+      .chat-messages::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      .chat-messages::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      .chat-messages::-webkit-scrollbar-thumb {
+        background-color: var(--color-border);
+        border-radius: 3px;
+      }
+
+      .chat-messages::-webkit-scrollbar-thumb:hover {
+        background-color: var(--color-border-dark);
+      }
+
+      /* Vertical Timeline - inside chat-messages, sticky */
+      .v-timeline {
+        position: sticky;
+        top: 0;
+        align-self: flex-start;
+        width: 160px;
+        min-width: 160px;
+        max-height: calc(100vh - 160px);
+        overflow-y: auto;
+        padding: 16px 0;
+        display: none;
+        flex-shrink: 0;
+        scrollbar-width: none;
+        border-right: 1px solid var(--color-border-light);
+      }
+      .v-timeline::-webkit-scrollbar {
+        display: none;
+      }
+      .v-timeline.visible {
+        display: block;
+      }
+      .v-timeline-label {
+        font-size: 10px;
+        color: var(--color-text-tertiary);
+        padding: 4px 12px 10px 12px;
+        font-weight: var(--font-weight-medium);
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+      .v-timeline-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 6px 12px;
+        cursor: pointer;
+        border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+        transition: background-color 0.15s ease;
+        position: relative;
+      }
+      .v-timeline-item:hover {
+        background-color: var(--color-bg-tertiary);
+      }
+      .v-timeline-item.active {
+        background-color: var(--color-primary-50);
+      }
+      .v-timeline-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background-color: var(--color-bg);
+        border: 2px solid var(--color-border);
+        flex-shrink: 0;
+        margin-top: 3px;
+        transition: all 0.2s ease;
+        position: relative;
+        z-index: 1;
+      }
+      .v-timeline-item:hover .v-timeline-dot {
+        border-color: var(--color-text-tertiary);
+      }
+      .v-timeline-item.active .v-timeline-dot {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+      }
+      .v-timeline-text {
+        font-size: 12px;
+        color: var(--color-text-tertiary);
+        line-height: 1.4;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        transition: color 0.15s ease;
+        flex: 1;
+        min-width: 0;
+      }
+      .v-timeline-item:hover .v-timeline-text {
+        color: var(--color-text-secondary);
+      }
+      .v-timeline-item.active .v-timeline-text {
+        color: var(--color-primary);
+      }
+
+      /* ============================================
+         Message Rows & Bubbles
+         ============================================ */
+      .conversation-container {
+        width: 100%;
+        max-width: 780px;
+        margin: 0 auto;
+        padding: 24px 24px 32px 56px;
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+      }
+
+      .message-row {
+        padding: var(--space-4) 0;
+      }
+
+      .message-row.user-message {
+        text-align: right;
+      }
+      .message-row.user-message .msg-text {
+        display: inline-block;
+        text-align: left;
+        max-width: 80%;
+        color: var(--color-text-secondary);
+      }
+      /* User message action bar (edit button, same style as AI msg-actions) */
+      .user-msg-actions {
+        display: flex;
+        gap: var(--space-1);
+        margin-top: var(--space-3);
+        justify-content: flex-end;
+        opacity: 0;
+        transition: opacity var(--transition-fast);
+      }
+      .message-row:hover .user-msg-actions {
+        opacity: 1;
+      }
+
+      /* User message editing mode */
+      .message-row.user-message.editing {
+        text-align: left;
+      }
+      .message-row.user-message.editing .msg-text {
+        max-width: 100%;
+        color: var(--color-text-primary);
+        display: block;
+      }
+      .message-row.user-message.editing .msg-bubble {
+        display: block;
+      }
+      .msg-edit-area {
+        width: 100%;
+        min-height: 40px;
+        max-height: 200px;
+        padding: 8px 12px;
+        border: 1px solid var(--color-primary);
+        border-radius: var(--radius-md);
+        background-color: var(--color-surface);
+        font-family: var(--font-family-body);
+        font-size: var(--font-size-body);
+        color: var(--color-text-primary);
+        line-height: var(--line-height-normal);
+        resize: none;
+        outline: none;
+        box-sizing: border-box;
+      }
+      .msg-edit-area::placeholder {
+        color: var(--color-text-tertiary);
+      }
+      .msg-edit-actions {
+        display: flex;
+        gap: var(--space-2);
+        margin-top: var(--space-2);
+        justify-content: flex-end;
+      }
+      .msg-edit-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 6px 14px;
+        border: none;
+        border-radius: var(--radius-md);
+        font-size: var(--font-size-body-sm);
+        cursor: pointer;
+        transition: all var(--transition-fast);
+      }
+      .msg-edit-btn.primary {
+        background-color: var(--color-primary);
+        color: var(--color-text-on-primary);
+      }
+      .msg-edit-btn.primary:hover {
+        background-color: var(--color-primary-dark);
+      }
+      .msg-edit-btn.secondary {
+        background-color: var(--color-bg-tertiary);
+        color: var(--color-text-secondary);
+      }
+      .msg-edit-btn.secondary:hover {
+        background-color: var(--color-border);
+      }
+
+      .message-row.assistant-message .msg-text {
+        max-width: 100%;
+        color: var(--color-text-primary);
+      }
+
+      /* Thin separator between message pairs */
+      .message-row + .message-row.user-message {
+        border-top: 1px solid var(--color-border-light);
+      }
+
+      .msg-body {
+        max-width: 100%;
+      }
+
+      .msg-bubble {
+        padding: 0;
+        border-radius: 0;
+        background: transparent;
+        font-size: var(--font-size-body);
+        line-height: var(--line-height-relaxed);
+        word-break: break-word;
+      }
+
+      .msg-text {
+        /* container for rendered markdown */
+      }
+
+      /* Markdown rendered content - comprehensive styling */
+      .msg-text p {
+        margin-bottom: var(--space-3);
+        line-height: var(--line-height-relaxed);
+      }
+      .msg-text p:last-child {
+        margin-bottom: 0;
+      }
+      .msg-text strong {
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
+      }
+      .msg-text em {
+        font-style: italic;
+      }
+      .msg-text h1, .msg-text h2, .msg-text h3, .msg-text h4 {
+        font-family: var(--font-family-title);
+        color: var(--color-text-primary);
+        margin-top: var(--space-6);
+        margin-bottom: var(--space-3);
+        font-weight: var(--font-weight-semibold);
+        line-height: var(--line-height-tight);
+      }
+      .msg-text h1 { font-size: var(--font-size-h1); }
+      .msg-text h2 { font-size: var(--font-size-h2); }
+      .msg-text h3 { font-size: var(--font-size-h3); }
+      .msg-text h4 { font-size: var(--font-size-h4); }
+      .msg-text h1:first-child, .msg-text h2:first-child, .msg-text h3:first-child, .msg-text h4:first-child {
+        margin-top: 0;
+      }
+      .msg-text ol, .msg-text ul {
+        margin: var(--space-3) 0;
+        padding-left: 1.5rem;
+      }
+      .msg-text ol {
+        list-style-type: decimal;
+      }
+      .msg-text ul {
+        list-style-type: disc;
+      }
+      .msg-text li {
+        margin-bottom: var(--space-2);
+        line-height: var(--line-height-relaxed);
+      }
+      .msg-text li:last-child {
+        margin-bottom: 0;
+      }
+      .msg-text li > p {
+        margin-bottom: var(--space-1);
+      }
+      .msg-text blockquote {
+        margin: var(--space-4) 0;
+        padding: var(--space-3) var(--space-4);
+        border-left: 3px solid var(--color-primary);
+        background-color: var(--color-primary-50);
+        color: var(--color-text-secondary);
+        border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      }
+      .msg-text blockquote p:last-child {
+        margin-bottom: 0;
+      }
+      .msg-text code {
+        font-family: var(--font-family-mono);
+        font-size: 0.875em;
+        padding: 0.15em 0.4em;
+        background-color: var(--color-bg-tertiary);
+        border-radius: var(--radius-sm);
+        color: var(--color-text-primary);
+      }
+      .msg-text pre {
+        margin: var(--space-4) 0;
+        padding: var(--space-4);
+        background-color: var(--color-bg-secondary);
+        border: 1px solid var(--color-border-light);
+        border-radius: var(--radius-md);
+        overflow-x: auto;
+      }
+      .msg-text pre code {
+        padding: 0;
+        background: transparent;
+        font-size: var(--font-size-body-sm);
+        line-height: var(--line-height-normal);
+      }
+      .msg-text hr {
+        border: none;
+        border-top: 1px solid var(--color-border-light);
+        margin: var(--space-6) 0;
+      }
+      .msg-text a {
+        color: var(--color-text-link);
+        text-decoration: none;
+      }
+      .msg-text a:hover {
+        color: var(--color-text-link-hover);
+        text-decoration: underline;
+      }
+      .msg-text table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: var(--space-4) 0;
+        font-size: var(--font-size-body-sm);
+      }
+      .msg-text th, .msg-text td {
+        padding: var(--space-2) var(--space-3);
+        border: 1px solid var(--color-border);
+        text-align: left;
+      }
+      .msg-text th {
+        background-color: var(--color-bg-secondary);
+        font-weight: var(--font-weight-medium);
+        color: var(--color-text-primary);
+      }
+
+      /* Thinking / Retrieval Steps */
+      .thinking-steps {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 4px 0;
+      }
+      .thinking-step {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: var(--font-size-body-sm);
+        color: var(--color-text-tertiary);
+        opacity: 0.4;
+        transition: opacity 0.3s ease;
+      }
+      .thinking-step.active {
+        opacity: 1;
+        color: var(--color-text-secondary);
+      }
+      .thinking-step.done {
+        opacity: 0.6;
+      }
+      .thinking-step-icon {
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+      }
+      .thinking-step.active .thinking-step-icon {
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      .thinking-step.done .thinking-step-icon {
+        color: var(--color-primary);
+      }
+      .thinking-step .step-text {
+        line-height: 1.4;
+      }
+      .thinking-step.active .step-text::after {
+        content: '';
+        display: inline-block;
+        width: 3px;
+        height: 3px;
+        border-radius: 50%;
+        background-color: var(--color-text-secondary);
+        margin-left: 4px;
+        animation: blink-dot 1s ease-in-out infinite;
+        vertical-align: middle;
+      }
+      @keyframes blink-dot {
+        0%, 100% { opacity: 0.3; }
+        50% { opacity: 1; }
+      }
+
+      /* ============================================
+         Source Cards
+         ============================================ */
+      .sources-section {
+        margin-top: var(--space-4);
+        border-top: 1px solid var(--color-border-light);
+        padding-top: var(--space-4);
+      }
+
+      .sources-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        user-select: none;
+        margin-bottom: var(--space-3);
+      }
+
+      .sources-header-label {
+        font-size: var(--font-size-caption);
+        font-weight: var(--font-weight-medium);
+        color: var(--color-text-tertiary);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .sources-header svg,
+      .sources-header i {
+        width: 14px;
+        height: 14px;
+        color: var(--color-text-tertiary);
+        transition: transform var(--transition-fast);
+      }
+
+      .sources-header.expanded svg,
+      .sources-header.expanded i {
+        transform: rotate(180deg);
+      }
+
+      .sources-list {
+        display: none;
+        flex-direction: column;
+        gap: var(--space-2);
+      }
+
+      .sources-list.visible {
+        display: flex;
+      }
+
+      .source-card {
+        padding: var(--space-3) var(--space-4);
+        border: 1px solid var(--color-border-light);
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: border-color var(--transition-fast), background-color var(--transition-fast);
+      }
+
+      .source-card:hover {
+        border-color: var(--color-border);
+        background-color: var(--color-bg-tertiary);
+      }
+
+      .source-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-3);
+      }
+
+      .source-title {
+        font-size: var(--font-size-body-sm);
+        font-weight: var(--font-weight-medium);
+        color: var(--color-text-primary);
+        line-height: 1.4;
+      }
+
+      .source-score {
+        font-size: var(--font-size-caption);
+        color: var(--color-primary);
+        font-weight: var(--font-weight-medium);
+        background-color: var(--color-primary-50);
+        padding: 2px 6px;
+        border-radius: var(--radius-sm);
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+
+      .source-author {
+        font-size: var(--font-size-caption);
+        color: var(--color-text-tertiary);
+        margin-top: 2px;
+      }
+
+      .source-excerpt {
+        font-size: var(--font-size-caption);
+        color: var(--color-text-secondary);
+        margin-top: var(--space-2);
+        line-height: var(--line-height-normal);
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      /* Source detail expand */
+      .source-detail-panel {
+        display: none;
+        margin-top: var(--space-3);
+        padding: var(--space-4);
+        background-color: var(--color-bg-secondary);
+        border-radius: var(--radius-md);
+        border-left: 3px solid var(--color-primary);
+      }
+      .source-detail-panel.visible {
+        display: block;
+      }
+      .source-detail-panel .detail-excerpt {
+        font-size: var(--font-size-body-sm);
+        color: var(--color-text-primary);
+        line-height: var(--line-height-relaxed);
+        margin-bottom: var(--space-3);
+      }
+      .source-detail-panel .detail-meta {
+        display: flex;
+        gap: var(--space-4);
+        font-size: var(--font-size-caption);
+        color: var(--color-text-tertiary);
+        margin-bottom: var(--space-3);
+      }
+      .source-detail-panel .detail-collapse-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: var(--space-1) var(--space-3);
+        border: none;
+        background: transparent;
+        color: var(--color-text-tertiary);
+        font-size: var(--font-size-caption);
+        cursor: pointer;
+        border-radius: var(--radius-sm);
+        transition: color var(--transition-fast), background-color var(--transition-fast);
+      }
+      .source-detail-panel .detail-collapse-btn:hover {
+        color: var(--color-text-secondary);
+        background-color: var(--color-bg-tertiary);
+      }
+      .source-detail-panel .detail-collapse-btn svg,
+      .source-detail-panel .detail-collapse-btn i {
+        width: 12px;
+        height: 12px;
+      }
+
+      /* ============================================
+         Message Action Buttons
+         ============================================ */
+      .msg-actions {
+        display: flex;
+        gap: var(--space-1);
+        margin-top: var(--space-3);
+        padding-top: var(--space-3);
+        border-top: 1px solid var(--color-border-light);
+        opacity: 0;
+        transition: opacity var(--transition-fast);
+      }
+      .message-row:hover .msg-actions {
+        opacity: 1;
+      }
+      .msg-action-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        border: none;
+        background: transparent;
+        color: var(--color-text-tertiary);
+        cursor: pointer;
+        border-radius: var(--radius-sm);
+        transition: all var(--transition-fast);
+      }
+      .msg-action-btn:hover {
+        color: var(--color-text-secondary);
+        background-color: var(--color-bg-tertiary);
+      }
+      .msg-action-btn svg,
+      .msg-action-btn i {
+        width: 15px;
+        height: 15px;
+      }
+
+      /* ============================================
+         Empty / Welcome state
+         ============================================ */
+      .welcome-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 40px 24px;
+        max-width: 560px;
+        width: 100%;
+        text-align: center;
+        flex: 1;
+        margin: 0 auto;
+      }
+
+      .welcome-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 48px;
+        height: 48px;
+        background-color: var(--color-primary);
+        border-radius: 50%;
+        margin-bottom: 20px;
+        flex-shrink: 0;
+      }
+
+      .welcome-icon svg,
+      .welcome-icon i {
+        width: 24px;
+        height: 24px;
+        color: #FFFFFF;
+      }
+
+      .welcome-title {
+        font-family: var(--font-family-title);
+        font-size: 1.25rem;
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
+        margin-bottom: 8px;
+        line-height: var(--line-height-tight);
+      }
+
+      .welcome-subtitle {
+        font-size: var(--font-size-body-sm);
+        color: var(--color-text-tertiary);
+        line-height: var(--line-height-relaxed);
+        max-width: 420px;
+        margin-bottom: 32px;
+      }
+
+      /* ============================================
+         Bottom Input Area
+         ============================================ */
+      .chat-input-area {
+        flex-shrink: 0;
+        padding: 0 24px 20px 24px;
+        background-color: var(--color-bg);
+      }
+
+      .chat-input-wrapper {
+        max-width: 780px;
+        margin: 0 auto;
+      }
+
+      /* Mode switcher (segmented control) */
+      .mode-switcher {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        margin-bottom: 8px;
+      }
+
+      .mode-tab {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 36px;
+        padding: 0 16px;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
+        background-color: transparent;
+        color: var(--color-text-secondary);
+        font-family: var(--font-family-body);
+        font-size: 13px;
+        font-weight: var(--font-weight-medium);
+        cursor: pointer;
+        transition: all var(--transition-fast);
+        user-select: none;
+        white-space: nowrap;
+      }
+
+      .mode-tab svg {
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+      }
+
+      .mode-tab:hover {
+        border-color: var(--color-border-dark);
+        color: var(--color-text-primary);
+      }
+
+      .mode-tab.active {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+        color: #FFFFFF;
+      }
+
+      .mode-tab.active:hover {
+        background-color: var(--color-primary-light);
+        border-color: var(--color-primary-light);
+      }
+
+      .mode-description {
+        text-align: center;
+        font-size: var(--font-size-caption);
+        color: var(--color-text-tertiary);
+        margin-bottom: 10px;
+        line-height: 1.4;
+      }
+
+      /* ── Feature Toggle Pills ──────────────────────────── */
+      .feature-toggles {
+        display: flex;
+        gap: 6px;
+        padding: 0 2px;
+        margin-right: auto;
+      }
+      .feature-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        height: 28px;
+        padding: 0 12px;
+        border: 1px solid var(--color-border);
+        border-radius: 14px;
+        background: transparent;
+        color: var(--color-text-tertiary);
+        font-family: var(--font-family-body);
+        font-size: 12px;
+        font-weight: var(--font-weight-medium);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        user-select: none;
+        white-space: nowrap;
+      }
+      .feature-pill svg,
+      .feature-pill i {
+        width: 13px;
+        height: 13px;
+        flex-shrink: 0;
+        transition: all 0.2s ease;
+      }
+      .feature-pill:hover {
+        border-color: var(--color-border-dark);
+        color: var(--color-text-secondary);
+      }
+      .feature-pill.active {
+        border-color: var(--color-primary);
+        color: var(--color-primary);
+        background-color: var(--color-primary-50);
+      }
+      .feature-pill.active svg,
+      .feature-pill.active i {
+        color: var(--color-primary);
+      }
+
+      /* ── Thinking Process Panel (DeepSeek style) ────── */
+      .thinking-process {
+        display: none;
+        margin-bottom: 12px;
+        border-radius: var(--radius-md);
+        overflow: hidden;
+      }
+      .thinking-process.visible {
+        display: block;
+      }
+      .thinking-process-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        background-color: var(--color-bg-tertiary);
+        cursor: pointer;
+        user-select: none;
+        transition: background-color 0.15s ease;
+      }
+      .thinking-process-header:hover {
+        background-color: var(--color-bg-secondary);
+      }
+      .thinking-process-icon {
+        width: 16px;
+        height: 16px;
+        color: var(--color-primary);
+        flex-shrink: 0;
+        animation: thinkPulse 1.5s ease-in-out infinite;
+      }
+      @keyframes thinkPulse {
+        0%, 100% { opacity: 0.4; }
+        50% { opacity: 1; }
+      }
+      .thinking-process-label {
+        font-size: 12px;
+        color: var(--color-text-tertiary);
+        font-weight: var(--font-weight-medium);
+      }
+      .thinking-process-duration {
+        margin-left: auto;
+        font-size: 11px;
+        color: var(--color-text-tertiary);
+        flex-shrink: 0;
+      }
+      .thinking-process-arrow {
+        width: 14px;
+        height: 14px;
+        color: var(--color-text-tertiary);
+        transition: transform 0.2s ease;
+        flex-shrink: 0;
+      }
+      .thinking-process.open .thinking-process-arrow {
+        transform: rotate(180deg);
+      }
+      .thinking-process-body {
+        display: none;
+        padding: 12px 16px;
+        background-color: var(--color-bg-tertiary);
+        border-top: 1px solid var(--color-border-light);
+        font-size: var(--font-size-body-sm);
+        color: var(--color-text-tertiary);
+        line-height: 1.8;
+        max-height: 320px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .thinking-process.open .thinking-process-body {
+        display: block;
+      }
+      .thinking-process-body::-webkit-scrollbar {
+        width: 4px;
+      }
+      .thinking-process-body::-webkit-scrollbar-thumb {
+        background-color: var(--color-border);
+        border-radius: 2px;
+      }
+
+      /* Search references panel */
+      .search-references {
+        display: none;
+        margin-bottom: 12px;
+        border-radius: var(--radius-md);
+        overflow: hidden;
+      }
+      .search-references.visible {
+        display: block;
+      }
+      .search-ref-header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        background-color: var(--color-bg-tertiary);
+        font-size: 12px;
+        color: var(--color-text-tertiary);
+        font-weight: var(--font-weight-medium);
+        cursor: pointer;
+        user-select: none;
+      }
+      .search-ref-header:hover {
+        background-color: var(--color-bg-secondary);
+      }
+      .search-ref-header svg, .search-ref-header i {
+        width: 14px;
+        height: 14px;
+        color: var(--color-primary);
+      }
+      .search-ref-list {
+        padding: 6px 10px;
+        background-color: var(--color-bg-tertiary);
+        border-top: 1px solid var(--color-border-light);
+        display: none;
+      }
+      .search-references.open .search-ref-list {
+        display: block;
+      }
+      .search-ref-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 6px;
+        padding: 6px 8px;
+        font-size: 12px;
+        color: var(--color-text-tertiary);
+        cursor: pointer;
+        border-radius: var(--radius-sm);
+        transition: background-color 0.15s ease;
+        line-height: 1.4;
+      }
+      .search-ref-item:hover {
+        background-color: var(--color-bg-secondary);
+        color: var(--color-text-secondary);
+      }
+      .search-ref-item a {
+        color: var(--color-primary);
+        text-decoration: none;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 280px;
+        display: inline-block;
+      }
+      .search-ref-item a:hover {
+        text-decoration: underline;
+      }
+      .search-ref-idx {
+        font-size: 10px;
+        color: var(--color-border-dark);
+        flex-shrink: 0;
+        min-width: 14px;
+      }
+
+      .chat-input-box {
+        display: flex;
+        flex-direction: column;
+        border: 1px solid var(--color-border);
+        border-radius: 16px;
+        background-color: var(--color-surface);
+        padding: 12px 12px 8px 16px;
+        transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+      }
+
+      .chat-input-box:focus-within {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 2px var(--color-primary-100);
+      }
+
+      /* Bottom toolbar inside input box */
+      .chat-input-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 4px;
+      }
+
+      .toolbar-right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .chat-textarea {
+        flex: 1;
+        border: none;
+        outline: none;
+        background: transparent;
+        font-family: var(--font-family-body);
+        font-size: var(--font-size-body);
+        color: var(--color-text-primary);
+        line-height: var(--line-height-normal);
+        resize: none;
+        min-height: 36px;
+        max-height: 200px;
+        padding: 8px 0;
+        overflow-y: auto;
+        scrollbar-width: none;
+      }
+
+      .chat-textarea::-webkit-scrollbar {
+        display: none;
+      }
+
+      .chat-textarea::placeholder {
+        color: var(--color-text-tertiary);
+      }
+
+      .send-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        min-width: 36px;
+        border: none;
+        border-radius: 50%;
+        background-color: var(--color-primary);
+        color: #FFFFFF;
+        cursor: pointer;
+        transition: background-color var(--transition-fast), opacity var(--transition-fast);
+      }
+
+      .send-btn:hover {
+        background-color: var(--color-primary-dark);
+      }
+
+      .send-btn:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+
+      .send-btn svg,
+      .send-btn i {
+        width: 18px;
+        height: 18px;
+      }
+
+      /* Streaming stop button */
+      .stop-btn {
+        display: none;
+        width: 36px;
+        height: 36px;
+        min-width: 36px;
+        border-radius: 50%;
+        background-color: var(--color-text-tertiary);
+        color: var(--color-surface);
+        border: none;
+        cursor: pointer;
+        align-items: center;
+        justify-content: center;
+        transition: background-color var(--transition-fast);
+      }
+      .stop-btn:hover {
+        background-color: var(--color-text-secondary);
+      }
+      .stop-btn svg,
+      .stop-btn i {
+        width: 18px;
+        height: 18px;
+      }
+
+      .input-hint {
+        text-align: center;
+        margin-top: 8px;
+        font-size: var(--font-size-caption);
+        color: var(--color-text-tertiary);
+      }
+
+      /* ============================================
+         Sidebar overlay (mobile)
+         ============================================ */
+      .sidebar-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background-color: rgba(0, 0, 0, 0.45);
+        z-index: 35;
+        opacity: 0;
+        transition: opacity var(--transition-normal);
+      }
+
+      .sidebar-overlay.visible {
+        opacity: 1;
+      }
+
+      /* ============================================
+         Settings Panel
+         ============================================ */
+      .settings-overlay {
+        position: fixed;
+        inset: 0;
+        background-color: rgba(0,0,0,0.4);
+        z-index: 500;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(2px);
+      }
+      .settings-overlay.open {
+        display: flex;
+      }
+      .settings-panel {
+        background-color: var(--color-surface);
+        border-radius: var(--radius-lg);
+        box-shadow: 0 8px 40px rgba(0,0,0,0.15);
+        width: 480px;
+        max-width: 90vw;
+        max-height: 80vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        animation: settingsFadeIn 0.2s ease;
+      }
+      @keyframes settingsFadeIn {
+        from { opacity: 0; transform: scale(0.95) translateY(10px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+      }
+      .settings-panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 24px 16px 24px;
+        border-bottom: 1px solid var(--color-border-light);
+      }
+      .settings-panel-header h2 {
+        font-size: 18px;
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
+        margin: 0;
+      }
+      .settings-close-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border: none;
+        border-radius: var(--radius-sm);
+        background: transparent;
+        color: var(--color-text-tertiary);
+        cursor: pointer;
+        transition: all var(--transition-fast);
+      }
+      .settings-close-btn:hover {
+        background-color: var(--color-bg-tertiary);
+        color: var(--color-text-secondary);
+      }
+      .settings-close-btn svg, .settings-close-btn i {
+        width: 18px;
+        height: 18px;
+      }
+      .settings-panel-body {
+        padding: 16px 24px 24px 24px;
+        overflow-y: auto;
+        flex: 1;
+      }
+      .settings-section {
+        margin-bottom: 24px;
+      }
+      .settings-section:last-child {
+        margin-bottom: 0;
+      }
+      .settings-section-title {
+        font-size: 12px;
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-tertiary);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--color-border-light);
+      }
+      .settings-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 0;
+        gap: 16px;
+      }
+      .settings-item + .settings-item {
+        border-top: 1px solid var(--color-border-light);
+      }
+      .settings-item-label {
+        font-size: var(--font-size-body);
+        color: var(--color-text-secondary);
+        flex-shrink: 0;
+      }
+      .settings-item-control {
+        flex-shrink: 0;
+      }
+      .settings-select {
+        padding: 6px 28px 6px 10px;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-sm);
+        background-color: var(--color-bg);
+        color: var(--color-text-primary);
+        font-size: var(--font-size-body-sm);
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 8px center;
+        min-width: 120px;
+      }
+      .settings-select:focus {
+        outline: 2px solid var(--color-primary-200);
+        border-color: var(--color-primary);
+      }
+      .settings-about {
+        padding: 16px 0;
+        text-align: center;
+      }
+      .settings-about-name {
+        font-size: 20px;
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
+        margin-bottom: 4px;
+      }
+      .settings-about-desc {
+        font-size: var(--font-size-body-sm);
+        color: var(--color-text-tertiary);
+        margin-bottom: 8px;
+      }
+      .settings-about-version {
+        font-size: 12px;
+        color: var(--color-text-tertiary);
+      }
+      .settings-item-desc {
+        font-size: var(--font-size-caption);
+        color: var(--color-text-tertiary);
+        margin-top: 4px;
+        line-height: 1.4;
+      }
+      .settings-input {
+        width: 100%;
+        padding: 6px 10px;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-sm);
+        background: var(--color-surface);
+        color: var(--color-text-primary);
+        font-size: var(--font-size-body-sm);
+        font-family: var(--font-family-body);
+        box-sizing: border-box;
+      }
+      .settings-input:focus {
+        outline: none;
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 2px var(--color-primary-100);
+      }
+      .settings-action-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 6px 12px;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-sm);
+        background: var(--color-surface);
+        color: var(--color-text-secondary);
+        font-size: var(--font-size-caption);
+        cursor: pointer;
+        transition: all var(--transition-fast);
+      }
+      .settings-action-btn:hover {
+        border-color: var(--color-primary);
+        color: var(--color-primary);
+        background: var(--color-primary-50);
+      }
+
+      /* ── Custom Inline Dialog ─────────────────────────── */
+      .inline-dialog-overlay {
+        position: fixed;
+        inset: 0;
+        background-color: rgba(0,0,0,0.4);
+        z-index: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(2px);
+        animation: settingsFadeIn 0.15s ease;
+      }
+      .inline-dialog {
+        background-color: var(--color-surface);
+        border-radius: var(--radius-lg);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+        width: 360px;
+        max-width: 90vw;
+        padding: 0;
+        overflow: hidden;
+        animation: settingsFadeIn 0.2s ease;
+      }
+      .inline-dialog-header {
+        padding: 18px 20px 0 20px;
+        font-size: 15px;
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
+      }
+      .inline-dialog-body {
+        padding: 14px 20px 8px 20px;
+      }
+      .inline-dialog-input {
+        width: 100%;
+        padding: 9px 12px;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-sm);
+        background-color: var(--color-bg);
+        color: var(--color-text-primary);
+        font-size: 14px;
+        outline: none;
+        transition: border-color var(--transition-fast);
+        box-sizing: border-box;
+      }
+      .inline-dialog-input:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 2px var(--color-primary-100);
+      }
+      .inline-dialog-input::placeholder {
+        color: var(--color-text-tertiary);
+      }
+      .inline-dialog-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        padding: 12px 20px 16px 20px;
+      }
+      .inline-dialog-btn {
+        padding: 7px 16px;
+        border-radius: var(--radius-sm);
+        font-size: 13px;
+        font-weight: var(--font-weight-medium);
+        cursor: pointer;
+        transition: all var(--transition-fast);
+        border: 1px solid transparent;
+      }
+      .inline-dialog-btn.cancel {
+        background: transparent;
+        color: var(--color-text-tertiary);
+        border-color: var(--color-border);
+      }
+      .inline-dialog-btn.cancel:hover {
+        background-color: var(--color-bg-tertiary);
+        color: var(--color-text-secondary);
+      }
+      .inline-dialog-btn.confirm {
+        background-color: var(--color-primary);
+        color: #fff;
+        border-color: var(--color-primary);
+      }
+      .inline-dialog-btn.confirm:hover {
+        opacity: 0.9;
+      }
+      .inline-dialog-btn.danger {
+        background-color: rgba(220,60,60,0.9);
+        color: #fff;
+      }
+      .inline-dialog-btn.danger:hover {
+        background-color: rgba(200,50,50,1);
+      }
+
+      /* Folder picker list */
+      .folder-picker-list {
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-sm);
+        background-color: var(--color-bg);
+      }
+      .folder-picker-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        cursor: pointer;
+        transition: background-color var(--transition-fast);
+        color: var(--color-text-secondary);
+        font-size: 13px;
+      }
+      .folder-picker-item:first-child {
+        border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+      }
+      .folder-picker-item:last-child {
+        border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+      }
+      .folder-picker-item:hover {
+        background-color: var(--color-bg-tertiary);
+      }
+      .folder-picker-item svg, .folder-picker-item i {
+        width: 14px;
+        height: 14px;
+        color: var(--color-text-tertiary);
+      }
+      .folder-picker-item.selected {
+        background-color: var(--color-primary-50);
+        color: var(--color-primary);
+      }
+      .folder-picker-empty {
+        padding: 12px;
+        text-align: center;
+        font-size: 12px;
+        color: var(--color-text-tertiary);
+      }
+
+      /* ============================================
+         Responsive
+         ============================================ */
+      @media (max-width: 768px) {
+        .chat-sidebar {
+          position: fixed;
+          top: 0;
+          left: 0;
+          height: 100vh;
+          transform: translateX(-100%);
+          box-shadow: var(--shadow-float);
+        }
+
+        .chat-sidebar.open {
+          transform: translateX(0);
+        }
+
+        .sidebar-overlay.active {
+          display: block;
+        }
+
+        .hamburger-btn {
+          display: flex;
+        }
+
+        .chat-input-area {
+          padding: 0 12px 12px 12px;
+        }
+
+        .conversation-container {
+          padding: 16px 12px 0 12px;
+        }
+        .v-timeline {
+          display: none !important;
+        }
+
+        .mode-switcher {
+          flex-wrap: wrap;
+        }
+
+        .mode-tab {
+          font-size: 12px;
+          padding: 0 12px;
+          height: 32px;
+        }
+
+        .sidebar-toggle {
+          display: none;
+        }
+
+        .msg-timeline {
+          padding: 8px 12px;
+        }
+        .msg-timeline-item {
+          font-size: 11px;
+          padding: 3px 8px;
+        }
+      }
+    </style>
+</head>
+<body>
+
+    <div class="chat-layout">
+
+        <!-- Sidebar Overlay (mobile) -->
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+        <!-- ============================================
+             LEFT SIDEBAR
+             ============================================ -->
+        <aside class="chat-sidebar" id="chatSidebar">
+
+            <!-- Sidebar Header / Logo -->
+            <div class="chat-sidebar-header">
+                <div class="sidebar-logo-main">MARXLEN</div>
+                <div class="sidebar-logo-sub">马列通</div>
+                <button class="new-chat-btn" type="button" id="newChatBtn">
+                    <i data-lucide="plus"></i>
+                    <span>新建对话</span>
+                </button>
+            </div>
+
+            <!-- History list (static demo) -->
+            <div class="chat-history-section" id="historySection">
+                <!-- 今天 -->
+                <div class="history-time-group">今天</div>
+                <div class="history-item active" data-conv-id="1">
+                    <i data-lucide="message-circle" style="width:14px;height:14px;flex-shrink:0;opacity:0.5;"></i>
+                    <span class="history-item-text">历史唯物主义与生产力发展</span>
+                </div>
+                <div class="history-item" data-conv-id="2">
+                    <i data-lucide="message-circle" style="width:14px;height:14px;flex-shrink:0;opacity:0.5;"></i>
+                    <span class="history-item-text">《资本论》中商品拜物教的分析</span>
+                </div>
+                <div class="history-item" data-conv-id="3">
+                    <i data-lucide="message-circle" style="width:14px;height:14px;flex-shrink:0;opacity:0.5;"></i>
+                    <span class="history-item-text">列宁帝国主义论的核心观点</span>
+                </div>
+
+                <!-- 昨天 -->
+                <div class="history-time-group">昨天</div>
+                <div class="history-item" data-conv-id="4">
+                    <i data-lucide="message-circle" style="width:14px;height:14px;flex-shrink:0;opacity:0.5;"></i>
+                    <span class="history-item-text">毛泽东《实践论》的认识论思想</span>
+                </div>
+                <div class="history-item" data-conv-id="5">
+                    <i data-lucide="message-circle" style="width:14px;height:14px;flex-shrink:0;opacity:0.5;"></i>
+                    <span class="history-item-text">恩格斯自然辩证法概述</span>
+                </div>
+
+                <!-- 文件夹分组 -->
+                <div class="history-folder open">
+                    <i data-lucide="chevron-right" class="folder-arrow"></i>
+                    <i data-lucide="folder" class="folder-icon"></i>
+                    <span class="folder-name">马克思主义哲学</span>
+                    <span class="folder-count">3</span>
+                </div>
+                <div class="folder-children">
+                    <div class="history-item" data-conv-id="6">
+                        <i data-lucide="message-circle" style="width:14px;height:14px;flex-shrink:0;opacity:0.5;"></i>
+                        <span class="history-item-text">辩证法的三大规律</span>
+                    </div>
+                    <div class="history-item" data-conv-id="7">
+                        <i data-lucide="message-circle" style="width:14px;height:14px;flex-shrink:0;opacity:0.5;"></i>
+                        <span class="history-item-text">矛盾论中的主要矛盾与次要矛盾</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar Footer / Settings -->
+            <div class="chat-sidebar-footer">
+                <button class="sidebar-settings-btn" type="button" aria-label="设置">
+                    <i data-lucide="settings"></i>
+                    <span>设置</span>
+                </button>
+                <button class="sidebar-toggle" type="button" id="sidebarToggle" aria-label="收起侧边栏" title="收起侧边栏">
+                    <i data-lucide="panel-left-close"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- ============================================
+             MAIN CHAT AREA
+             ============================================ -->
+        <div class="chat-main">
+
+            <!-- Top Bar -->
+            <div class="chat-topbar">
+                <div class="topbar-left">
+                    <!-- Mobile hamburger -->
+                    <button class="hamburger-btn" type="button" id="hamburgerBtn" aria-label="打开侧边栏">
+                        <i data-lucide="menu"></i>
+                    </button>
+                </div>
+                <div class="topbar-right"></div>
+            </div>
+
+            <!-- Chat Messages Area -->
+            <div class="chat-messages" id="chatMessages">
+
+                <!-- Vertical Timeline (sticky) -->
+                <div class="v-timeline visible" id="vTimeline">
+                    <div class="v-timeline-label">对话节点</div>
+                    <div class="v-timeline-item active">
+                        <div class="v-timeline-dot"></div>
+                        <span class="v-timeline-text">历史唯物主义与生产力发展</span>
+                    </div>
+                    <div class="v-timeline-item">
+                        <div class="v-timeline-dot"></div>
+                        <span class="v-timeline-text">马克思的国家学说</span>
+                    </div>
+                </div>
+
+                <!-- Conversation messages (static demo) -->
+                <div class="conversation-container" id="conversationContainer">
+                    <!-- User Message -->
+                    <div class="message-row user-message">
+                        <div class="msg-body">
+                            <div class="msg-text">
+                                <div class="msg-bubble">
+                                    <p>请解释历史唯物主义中生产力与生产关系的基本原理。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Assistant Message -->
+                    <div class="message-row assistant-message">
+                        <div class="msg-body">
+                            <div class="msg-text">
+                                <div class="msg-bubble">
+                                    <!-- Thinking Process Panel (collapsed) -->
+                                    <div class="thinking-process visible">
+                                        <div class="thinking-process-header">
+                                            <i data-lucide="brain" class="thinking-process-icon" style="animation:none;"></i>
+                                            <span class="thinking-process-label">已深度思考</span>
+                                            <span class="thinking-process-duration">8.2s</span>
+                                            <i data-lucide="chevron-down" class="thinking-process-arrow"></i>
+                                        </div>
+                                        <div class="thinking-process-body">
+用户询问的是历史唯物主义的核心范畴——生产力与生产关系的辩证关系。需要从经典文本出发，结合作者的具体论述来展开说明。
+
+首先需要明确生产力与生产关系的定义及其相互作用机制。马克思在《政治经济学批判》序言中对此有经典表述。
+
+其次要说明这对范畴在整个历史唯物主义体系中的地位——它是理解社会形态更替的钥匙。
+
+最后需要用实例加以佐证，使抽象原理具象化。
+                                        </div>
+                                    </div>
+
+                                    <p><strong>历史唯物主义</strong>是马克思主义哲学的核心组成部分。历史唯物主义认为，生产力与生产关系的矛盾运动是社会发展的根本动力。</p>
+
+                                    <h3>一、生产力的定义</h3>
+                                    <p>生产力是人们改造自然、进行物质资料生产的能力，包括三个基本要素：</p>
+                                    <ul>
+                                        <li><strong>劳动者</strong>——具有一定生产经验和劳动技能的人</li>
+                                        <li><strong>劳动资料</strong>——主要是生产工具</li>
+                                        <li><strong>劳动对象</strong>——劳动加工的对象</li>
+                                    </ul>
+                                    <p>马克思指出："生产力中也包括科学"（《政治经济学批判》），科学技术是生产力发展的重要推动力量。</p>
+
+                                    <h3>二、生产关系的定义</h3>
+                                    <p>生产关系是人们在物质资料生产过程中结成的社会关系，主要包括：</p>
+                                    <ul>
+                                        <li>生产资料的所有制关系</li>
+                                        <li>人们在生产中的地位和相互关系</li>
+                                        <li>产品分配关系</li>
+                                    </ul>
+                                    <blockquote>
+                                        "人们在自己生活的社会生产中发生一定的、必然的、不依他们的意志为转移的关系，即同他们的物质生产力的一定发展阶段相适合的生产关系。"——马克思《〈政治经济学批判〉序言》
+                                    </blockquote>
+
+                                    <h3>三、生产力与生产关系的辩证关系</h3>
+                                    <p>二者的关系可以概括为：<strong>生产力决定生产关系，生产关系反作用于生产力</strong>。</p>
+                                    <ol>
+                                        <li><strong>生产力决定生产关系</strong>：生产力的性质和水平决定生产关系的性质和形式；生产力的发展变化决定生产关系的变革。</li>
+                                        <li><strong>生产关系反作用于生产力</strong>：当生产关系适应生产力发展要求时，它会促进生产力的发展；当生产关系不适应生产力发展要求时，它会阻碍生产力的发展。</li>
+                                    </ol>
+
+                                    <h3>四、结论</h3>
+                                    <p>生产力与生产关系的矛盾运动构成了人类社会发展的基本规律——<strong>生产关系一定要适合生产力状况的规律</strong>。这一规律是马克思主义政党制定路线、方针、政策的重要依据。</p>
+                                </div>
+
+                                <!-- Message Actions -->
+                                <div class="msg-actions">
+                                    <button class="msg-action-btn" type="button" aria-label="复制" title="复制">
+                                        <i data-lucide="copy"></i>
+                                    </button>
+                                    <button class="msg-action-btn" type="button" aria-label="重新生成" title="重新生成">
+                                        <i data-lucide="refresh-cw"></i>
+                                    </button>
+                                    <button class="msg-action-btn" type="button" aria-label="点赞" title="点赞">
+                                        <i data-lucide="thumbs-up"></i>
+                                    </button>
+                                    <button class="msg-action-btn" type="button" aria-label="点踩" title="点踩">
+                                        <i data-lucide="thumbs-down"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Divider -->
+                    <div class="message-row user-message">
+                        <div class="msg-body">
+                            <div class="msg-text">
+                                <div class="msg-bubble">
+                                    <p>马克思在《哥达纲领批判》中如何批判拉萨尔主义？请结合原文分析。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Assistant Message with Sources -->
+                    <div class="message-row assistant-message">
+                        <div class="msg-body">
+                            <div class="msg-text">
+                                <div class="msg-bubble">
+                                    <div class="thinking-process visible open">
+                                        <div class="thinking-process-header">
+                                            <i data-lucide="brain" class="thinking-process-icon" style="animation:none;"></i>
+                                            <span class="thinking-process-label">已深度思考</span>
+                                            <span class="thinking-process-duration">12.5s</span>
+                                            <i data-lucide="chevron-down" class="thinking-process-arrow"></i>
+                                        </div>
+                                        <div class="thinking-process-body">
+《哥达纲领批判》是马克思1875年针对德国工人党（即后来的社会民主党）的哥达纲领所写的批判性著作。拉萨尔主义的核心主张包括：依靠国家帮助建立生产合作社来实现社会主义、铁的工资规律、对农民阶级的否定态度等。
+
+需要围绕以下几个关键批判点展开：
+1. 对"铁的工资规律"的批判 —— 马克思用剩余价值理论揭示工资的本质
+2. 对"国家帮助"的批判 —— 国家是阶级统治的工具
+3. 对农民问题的批判 —— 拉萨尔主义将农民视为"反动的一帮"
+4. 对"公平分配"的批判 —— 马克思提出共产主义两个阶段理论
+
+需要引用原文来支撑这些分析，同时展示马克思的论证逻辑。
+                                        </div>
+                                    </div>
+
+                                    <p>马克思在《哥达纲领批判》中对拉萨尔主义进行了系统而深刻的批判，主要集中在以下几个方面：</p>
+
+                                    <h3>一、批判"铁的工资规律"</h3>
+                                    <p>拉萨尔主义把工资规律看作"铁的规律"——工资的平均水平总是等同于维持工人及其家属生存所必需的最低费用。马克思指出：</p>
+                                    <blockquote>
+                                        "工资不是它表面上呈现的那种东西，不是劳动的价值或价格，而只是劳动力的价值或价格的掩蔽形式。"——《哥达纲领批判》
+                                    </blockquote>
+                                    <p>马克思用<strong>剩余价值理论</strong>取而代之：工人出卖的不是劳动而是劳动力，工资是劳动力价值的货币表现，其秘密在于剩余价值的创造和占有。</p>
+
+                                    <h3>二、批判"国家帮助建立生产合作社"</h3>
+                                    <p>拉萨尔认为可以通过资产阶级国家帮助建立生产合作社来实现社会主义。马克思对此尖锐批评：</p>
+                                    <blockquote>
+                                        "既不是什么'国家帮助'，也不是什么'国家援助'——而是<em>革命</em>！"——《马克思致白拉克的信》
+                                    </blockquote>
+                                    <p>马克思认为，现代国家实质上是资产阶级的阶级统治工具，寄希望于"国家帮助"是空想主义的表现。</p>
+
+                                    <h3>三、批判"反动的一帮"理论</h3>
+                                    <p>拉萨尔主义把农民、小资产阶级等一切非无产阶级都称为"反动的一帮"。马克思坚决反对这种宗派主义观点，强调工农联盟的重要性。</p>
+
+                                    <h3>四、共产主义两个阶段理论</h3>
+                                    <p>针对哥达纲领中"公平分配"的模糊提法，马克思首次明确提出了共产主义社会两个阶段的理论：</p>
+                                    <ol>
+                                        <li><strong>第一阶段（社会主义）</strong>——"按劳分配"，形式上平等而事实上不平等</li>
+                                        <li><strong>高级阶段</strong>——"各尽所能，按需分配"</li>
+                                    </ol>
+                                    <blockquote>
+                                        "在共产主义社会高级阶段上，在迫使人们奴隶般地服从分工的情形已经消失之后……只有在那个时候，才能完全超出资产阶级法权的狭隘眼界，社会才能在自己的旗帜上写上：各尽所能，按需分配！"
+                                    </blockquote>
+
+                                    <!-- Source Cards -->
+                                    <div class="sources-section">
+                                        <div class="sources-header expanded">
+                                            <span class="sources-header-label">3 个参考资料</span>
+                                            <i data-lucide="chevron-down"></i>
+                                        </div>
+                                        <div class="sources-list visible">
+                                            <div class="source-card">
+                                                <div class="source-card-header">
+                                                    <span class="source-title">《哥达纲领批判》</span>
+                                                    <span class="source-score">96%</span>
+                                                </div>
+                                                <div class="source-author">卡尔·马克思 · 1875年</div>
+                                                <div class="source-excerpt">工资不是它表面上呈现的那种东西，不是劳动的价值或价格，而只是劳动力的价值或价格的掩蔽形式。</div>
+                                            </div>
+                                            <div class="source-card">
+                                                <div class="source-card-header">
+                                                    <span class="source-title">《马克思致白拉克的信》</span>
+                                                    <span class="source-score">91%</span>
+                                                </div>
+                                                <div class="source-author">卡尔·马克思 · 1875年5月5日</div>
+                                                <div class="source-excerpt">既不是什么"国家帮助"，也不是什么"国家援助"——而是革命！</div>
+                                            </div>
+                                            <div class="source-card">
+                                                <div class="source-card-header">
+                                                    <span class="source-title">《资本论》第一卷</span>
+                                                    <span class="source-score">88%</span>
+                                                </div>
+                                                <div class="source-author">卡尔·马克思 · 1867年</div>
+                                                <div class="source-excerpt">劳动力的价值和劳动力在劳动过程中的价值增殖，是两个不同的量。</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Message Actions -->
+                                <div class="msg-actions">
+                                    <button class="msg-action-btn" type="button" aria-label="复制" title="复制">
+                                        <i data-lucide="copy"></i>
+                                    </button>
+                                    <button class="msg-action-btn" type="button" aria-label="重新生成" title="重新生成">
+                                        <i data-lucide="refresh-cw"></i>
+                                    </button>
+                                    <button class="msg-action-btn" type="button" aria-label="点赞" title="点赞">
+                                        <i data-lucide="thumbs-up"></i>
+                                    </button>
+                                    <button class="msg-action-btn" type="button" aria-label="点踩" title="点踩">
+                                        <i data-lucide="thumbs-down"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Bottom Input Area -->
+            <div class="chat-input-area">
+                <div class="chat-input-wrapper">
+                    <!-- Mode Switcher -->
+                    <div class="mode-switcher" id="modeSwitcher">
+                        <div class="mode-tab active" data-mode="general">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                            <span>通用问答</span>
+                        </div>
+                        <div class="mode-tab" data-mode="methodology">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a5 5 0 0 1 5 5c0 2.76-2.24 5-5 5s-5-2.24-5-5a5 5 0 0 1 5-5z"/><path d="M9 12v4a3 3 0 0 0 6 0v-4"/></svg>
+                            <span>马哲方法论</span>
+                        </div>
+                        <div class="mode-tab" data-mode="original">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                            <span>原文查询</span>
+                        </div>
+                    </div>
+                    <div class="mode-description" id="modeDescription">基于马克思主义理论回答一般问题</div>
+                    <div class="chat-input-box">
+                        <textarea
+                            class="chat-textarea"
+                            id="chatTextarea"
+                            placeholder="输入你的问题..."
+                            rows="1"
+                        ></textarea>
+                        <div class="chat-input-toolbar">
+                            <!-- Feature Toggle Pills -->
+                            <div class="feature-toggles">
+                                <button class="feature-pill thinking active" type="button" id="thinkingToggle" title="关闭深度思考">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+                                    <span>深度思考</span>
+                                </button>
+                                <button class="feature-pill search" type="button" id="searchToggle" title="联网搜索">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                                    <span>联网搜索</span>
+                                </button>
+                            </div>
+                            <!-- Model selector (inside input box) -->
+                            <div class="model-selector-wrapper">
+                                <div class="model-selector" id="modelSelector" tabindex="0" role="button" aria-label="选择模型" aria-haspopup="listbox">
+                                    <span class="model-selector-name" id="modelSelectorName">DeepSeek R1</span>
+                                    <i data-lucide="chevron-down"></i>
+                                </div>
+                                <div class="model-dropdown" id="modelDropdown" role="listbox">
+                                    <div class="model-dropdown-item active">DeepSeek R1 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
+                                    <div class="model-dropdown-item">DeepSeek V3</div>
+                                    <div class="model-dropdown-item">GPT-4o</div>
+                                    <div class="model-dropdown-item">Claude 3.5 Sonnet</div>
+                                </div>
+                            </div>
+                            <div class="toolbar-right">
+                                <button class="send-btn" type="button" id="sendBtn" aria-label="发送">
+                                    <i data-lucide="arrow-up"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="input-hint">此为AI与文献综合回答，请谨慎辨别</div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ============================================
+         Settings Panel (static demo)
+         ============================================ -->
+    <div class="settings-overlay" id="settingsOverlay">
+        <div class="settings-panel" id="settingsPanel">
+            <div class="settings-panel-header">
+                <h2>设置</h2>
+                <button class="settings-close-btn" type="button" id="settingsCloseBtn" aria-label="关闭设置">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="settings-panel-body" id="settingsPanelBody">
+                <div class="settings-section">
+                    <div class="settings-section-title">通用</div>
+                    <div class="settings-item">
+                        <span class="settings-item-label">主题模式</span>
+                        <div class="settings-item-control">
+                            <select class="settings-select">
+                                <option>跟随系统</option>
+                                <option selected>浅色模式</option>
+                                <option>深色模式</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="settings-item">
+                        <span class="settings-item-label">语言</span>
+                        <div class="settings-item-control">
+                            <select class="settings-select">
+                                <option selected>简体中文</option>
+                                <option>English</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <div class="settings-section-title">API 配置</div>
+                    <div class="settings-item">
+                        <span class="settings-item-label">API 地址</span>
+                        <div class="settings-item-control" style="flex:1;max-width:260px;">
+                            <input class="settings-input" type="text" value="http://localhost:8000" />
+                        </div>
+                    </div>
+                    <div class="settings-item">
+                        <span class="settings-item-label">API Key</span>
+                        <div class="settings-item-control" style="flex:1;max-width:260px;">
+                            <input class="settings-input" type="password" value="sk-demo-key" />
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <div class="settings-section-title">关于</div>
+                    <div class="settings-about">
+                        <div class="settings-about-name">MarxLen - 马列通</div>
+                        <div class="settings-about-desc">马克思主义经典著作智能问答系统</div>
+                        <div class="settings-about-version">v1.0.0 纯 UI 演示版</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ── 仅保留 UI 交互相关的最小脚本 ──
+
+        // 初始化 Lucide 图标
+        lucide.createIcons();
+
+        // ── 侧边栏折叠/展开 (桌面端) ──
+        var sidebarToggle = document.getElementById('sidebarToggle');
+        var sidebar = document.getElementById('chatSidebar');
+        var sidebarCollapsed = false;
+
+        if (sidebarToggle) {
+            sidebarToggle.addEventListener('click', function() {
+                sidebarCollapsed = !sidebarCollapsed;
+                sidebar.classList.toggle('collapsed', sidebarCollapsed);
+                sidebarToggle.classList.toggle('collapsed', sidebarCollapsed);
+                sidebarToggle.title = sidebarCollapsed ? '展开侧边栏' : '收起侧边栏';
+                sidebarToggle.setAttribute('aria-label', sidebarCollapsed ? '展开侧边栏' : '收起侧边栏');
+                if (sidebarCollapsed) {
+                    sidebarToggle.innerHTML = '<i data-lucide="panel-left-open"></i>';
+                } else {
+                    sidebarToggle.innerHTML = '<i data-lucide="panel-left-close"></i>';
+                }
+                lucide.createIcons();
+            });
+        }
+
+        // ── 侧边栏移动端打开/关闭 ──
+        var hamburger = document.getElementById('hamburgerBtn');
+        var overlay = document.getElementById('sidebarOverlay');
+
+        if (hamburger) {
+            hamburger.addEventListener('click', function() {
+                sidebar.classList.add('open');
+                overlay.classList.add('active', 'visible');
+            });
+        }
+
+        if (overlay) {
+            overlay.addEventListener('click', function() {
+                sidebar.classList.remove('open');
+                overlay.classList.remove('visible');
+                setTimeout(function() { overlay.classList.remove('active'); }, 250);
+            });
+        }
+
+        // ── 设置面板打开/关闭 ──
+        var settingsOverlay = document.getElementById('settingsOverlay');
+        var settingsCloseBtn = document.getElementById('settingsCloseBtn');
+        var sidebarSettingsBtn = document.querySelector('.sidebar-settings-btn');
+
+        function openSettings() {
+            settingsOverlay.classList.add('open');
+        }
+
+        function closeSettingsPanel() {
+            settingsOverlay.classList.remove('open');
+        }
+
+        if (sidebarSettingsBtn) {
+            sidebarSettingsBtn.addEventListener('click', function() {
+                openSettings();
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.remove('open');
+                    overlay.classList.remove('visible');
+                    setTimeout(function() { overlay.classList.remove('active'); }, 250);
+                }
+            });
+        }
+
+        if (settingsCloseBtn) {
+            settingsCloseBtn.addEventListener('click', closeSettingsPanel);
+        }
+
+        if (settingsOverlay) {
+            settingsOverlay.addEventListener('click', function(e) {
+                if (e.target === settingsOverlay) closeSettingsPanel();
+            });
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') { closeSettingsPanel(); }
+        });
+
+        // ── 思考过程折叠/展开 ──
+        document.querySelectorAll('.thinking-process-header').forEach(function(header) {
+            header.addEventListener('click', function() {
+                header.parentElement.classList.toggle('open');
+            });
+        });
+
+        // ── 参考资料折叠/展开 ──
+        document.querySelectorAll('.sources-header').forEach(function(header) {
+            header.addEventListener('click', function() {
+                header.classList.toggle('expanded');
+                var list = header.nextElementSibling;
+                if (list) list.classList.toggle('visible');
+            });
+        });
+
+        // ── 模型选择器下拉 ──
+        var modelSelector = document.getElementById('modelSelector');
+        var modelDropdown = document.getElementById('modelDropdown');
+
+        if (modelSelector) {
+            modelSelector.addEventListener('click', function(e) {
+                e.stopPropagation();
+                modelDropdown.classList.toggle('open');
+            });
+
+            modelDropdown.querySelectorAll('.model-dropdown-item').forEach(function(item) {
+                item.addEventListener('click', function() {
+                    var name = this.textContent.trim();
+                    document.getElementById('modelSelectorName').textContent = name;
+                    modelDropdown.querySelectorAll('.model-dropdown-item').forEach(function(i) {
+                        i.classList.remove('active');
+                        i.innerHTML = i.textContent.trim();
+                    });
+                    this.classList.add('active');
+                    this.innerHTML = this.textContent.trim() + ' <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>';
+                    modelDropdown.classList.remove('open');
+                });
+            });
+
+            document.addEventListener('click', function() {
+                if (modelDropdown) modelDropdown.classList.remove('open');
+            });
+        }
+
+        // ── 模式切换 ──
+        document.querySelectorAll('.mode-tab').forEach(function(tab) {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.mode-tab').forEach(function(t) { t.classList.remove('active'); });
+                this.classList.add('active');
+                var mode = this.getAttribute('data-mode');
+                var descs = {
+                    'general': '基于马克思主义理论回答一般问题',
+                    'methodology': '运用马克思主义方法论分析问题',
+                    'original': '直接从经典文献中查找原文'
+                };
+                document.getElementById('modeDescription').textContent = descs[mode] || '';
+            });
+        });
+
+        // ── 功能开关 ──
+        document.querySelectorAll('.feature-pill').forEach(function(pill) {
+            pill.addEventListener('click', function() {
+                this.classList.toggle('active');
+                if (this.id === 'thinkingToggle') {
+                    this.title = this.classList.contains('active') ? '关闭深度思考' : '开启深度思考';
+                }
+            });
+        });
+
+        // ── 历史记录点击 ──
+        document.querySelectorAll('.history-item').forEach(function(item) {
+            item.addEventListener('click', function() {
+                document.querySelectorAll('.history-item').forEach(function(i) { i.classList.remove('active'); });
+                this.classList.add('active');
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.remove('open');
+                    overlay.classList.remove('visible');
+                    setTimeout(function() { overlay.classList.remove('active'); }, 250);
+                }
+            });
+        });
+
+        // ── 文件夹折叠/展开 ──
+        document.querySelectorAll('.history-folder').forEach(function(folder) {
+            folder.addEventListener('click', function() {
+                this.classList.toggle('open');
+            });
+        });
+
+        console.log('Demo UI loaded - this is a static UI demonstration.');
+    </script>
+
+</body>
+</html>
