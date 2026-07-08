@@ -6,13 +6,13 @@ __pycache__/
 # ===== 虚拟环境 =====
 .venv/
 
-# ===== 数据文件（运行中生成，不打包进镜像） =====
-rag/*.db
-rag/*.db-shm
-rag/*.db-wal
-rag/*.pkl
-rag/*.idx
+# ===== 数据文件（运行中生成的缓存不打包进镜像） =====
+rag/cache_answers.db
+rag/cache_answers.db-shm
+rag/cache_answers.db-wal
 rag/cache_embeddings.db
+rag/cache_embeddings.db-shm
+rag/cache_embeddings.db-wal
 
 # ===== 密钥 =====
 .env
