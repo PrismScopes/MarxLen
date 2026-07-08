@@ -1,0 +1,46 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# ===== 虚拟环境 =====
+rag/.venv/
+
+# ===== 运行时缓存数据库（不提交） =====
+rag/cache_answers.db
+rag/cache_answers.db-shm
+rag/cache_answers.db-wal
+rag/cache_embeddings.db
+rag/cache_embeddings.db-shm
+rag/cache_embeddings.db-wal
+rag/documents.db-shm
+rag/documents.db-wal
+api/conversations.db
+
+# ===== 环境配置 =====
+.env
+rag/.env
+
+# ===== 建库原料/工具（不提交） =====
+ww/
+pdf_ocr/
+rag/ingest_philosophy.py
+
+# ===== 开发笔记 =====
+过程/
+
+# ===== 编辑器 =====
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ===== 系统 =====
+Thumbs.db
+.DS_Store
+
+# ===== 日志 =====
+*.log
