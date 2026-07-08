@@ -254,13 +254,13 @@ class HybridRetriever:
 
         except requests.Timeout:
             logging.error(f"  Rerank 超时 ({RERANK_TIMEOUT}s), query='{query[:30]}'")
-            return documents[:top_n]
+            return [{**d, "rerank_score": 0.0} for d in documents[:top_n]]
         except requests.RequestException as e:
             logging.error(f"  Rerank API 请求失败: {e}, query='{query[:30]}'")
-            return documents[:top_n]
+            return [{**d, "rerank_score": 0.0} for d in documents[:top_n]]
         except (KeyError, IndexError) as e:
             logging.error(f"  Rerank 响应格式异常: {e}")
-            return documents[:top_n]
+            return [{**d, "rerank_score": 0.0} for d in documents[:top_n]]
 
     def retrieve(self, query: str, top_k: int = 5, fetch_k: int = 30) -> List[Dict]:
         """
