@@ -1,0 +1,139 @@
+/* ============================================
+   Marxist RAG Knowledge Base - Brand Design System
+   Theme: Advanced Red + White (Marxist Theory)
+   Tone: Editorial / Academic / Solemn
+   ============================================ */
+
+:root {
+  /* --- Primary Color System --- */
+  --color-primary: #8B1A1A;
+  --color-primary-light: #A52828;
+  --color-primary-lighter: #C44040;
+  --color-primary-dark: #6B1010;
+  --color-primary-darker: #4A0A0A;
+  --color-primary-50: rgba(139, 26, 26, 0.05);
+  --color-primary-100: rgba(139, 26, 26, 0.10);
+  --color-primary-200: rgba(139, 26, 26, 0.20);
+  --color-primary-500: rgba(139, 26, 26, 0.50);
+  --color-primary-700: rgba(139, 26, 26, 0.70);
+  --color-primary-900: rgba(139, 26, 26, 0.90);
+
+  /* --- Neutral Color System --- */
+  --color-bg: #FFFFFF;
+  --color-bg-secondary: #F9F7F5;
+  --color-bg-tertiary: #F3F0EC;
+  --color-bg-elevated: #FFFFFF;
+  --color-surface: #FFFFFF;
+  --color-surface-secondary: #F5F2EE;
+  --color-border: #E8E2DA;
+  --color-border-light: #F0ECE6;
+  --color-border-dark: #D1C9BE;
+  --color-text-primary: #1A1410;
+  --color-text-secondary: #5C5347;
+  --color-text-tertiary: #8A8078;
+  --color-text-inverse: #FFFFFF;
+  --color-text-on-primary: #FFFFFF;
+  --color-text-link: #8B1A1A;
+  --color-text-link-hover: #6B1010;
+
+  /* --- State Colors --- */
+  --state-success: #2D6A4F;
+  --state-warning: #B45309;
+  --state-error: #B91C1C;
+  --state-info: #1E5A8A;
+
+  /* --- Typography System --- */
+  --font-family-title: 'Noto Serif SC', 'Source Han Serif SC', 'SimSun', Georgia, serif;
+  --font-family-body: 'Noto Sans SC', 'Source Han Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-family-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+
+  --font-size-display: 2.5rem;
+  --font-size-h1: 2rem;
+  --font-size-h2: 1.5rem;
+  --font-size-h3: 1.25rem;
+  --font-size-h4: 1.125rem;
+  --font-size-body: 0.9375rem;
+  --font-size-body-sm: 0.875rem;
+  --font-size-caption: 0.75rem;
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.6;
+  --line-height-relaxed: 1.8;
+  --letter-spacing-tight: -0.02em;
+  --letter-spacing-normal: 0;
+  --letter-spacing-wide: 0.05em;
+
+  /* --- Radius System --- */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+
+  /* --- Spacing System --- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
+  --space-24: 6rem;
+
+  /* --- Shadow System (static alpha <= 0.05) --- */
+  --shadow-sm: 0 1px 2px rgba(26, 20, 16, 0.04);
+  --shadow-md: 0 2px 8px rgba(26, 20, 16, 0.05);
+  --shadow-lg: 0 8px 24px rgba(26, 20, 16, 0.05);
+  --shadow-float: 0 12px 40px rgba(26, 20, 16, 0.10);
+  --shadow-none: none;
+
+  /* --- Transition --- */
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+  --transition-slow: 350ms ease;
+}
+
+/* --- Dark Mode --- */
+.dark {
+  --color-primary: #D44040;
+  --color-primary-light: #E05555;
+  --color-primary-lighter: #F07070;
+  --color-primary-dark: #B83030;
+  --color-primary-darker: #901818;
+  --color-primary-50: rgba(212, 64, 64, 0.08);
+  --color-primary-100: rgba(212, 64, 64, 0.15);
+  --color-primary-200: rgba(212, 64, 64, 0.25);
+  --color-primary-500: rgba(212, 64, 64, 0.55);
+  --color-primary-700: rgba(212, 64, 64, 0.75);
+  --color-primary-900: rgba(212, 64, 64, 0.92);
+
+  --color-bg: #121010;
+  --color-bg-secondary: #1A1816;
+  --color-bg-tertiary: #222018;
+  --color-bg-elevated: #1E1C1A;
+  --color-surface: #1E1C1A;
+  --color-surface-secondary: #262420;
+  --color-border: #332E28;
+  --color-border-light: #2A2620;
+  --color-border-dark: #443E36;
+  --color-text-primary: #F0ECE6;
+  --color-text-secondary: #B5ADA2;
+  --color-text-tertiary: #7A7268;
+  --color-text-inverse: #121010;
+  --color-text-on-primary: #FFFFFF;
+  --color-text-link: #E05555;
+  --color-text-link-hover: #F07070;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.20);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.30);
+  --shadow-float: 0 12px 40px rgba(0, 0, 0, 0.40);
+}

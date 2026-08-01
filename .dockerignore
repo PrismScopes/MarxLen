@@ -1,0 +1,29 @@
+# ===== Python 缓存 =====
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# ===== 虚拟环境 =====
+.venv/
+
+# ===== 数据文件（运行中生成的缓存不打包进镜像） =====
+rag/cache_answers.db
+rag/cache_answers.db-shm
+rag/cache_answers.db-wal
+rag/cache_embeddings.db
+rag/cache_embeddings.db-shm
+rag/cache_embeddings.db-wal
+
+# ===== 密钥 =====
+.env
+rag/.env
+
+# ===== 原始文档（通过 volume 挂载） =====
+ww/
+
+# ===== 本地开发 =====
+.idea/
+.git/
+过程/
+pdf_ocr/
+tests/

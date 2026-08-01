@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarxLen - 马列通</title>
+    <meta name="description" content="基于马克思主义经典著作的 RAG 智能问答系统">
+
+    <!-- 字体自托管前的过渡方案：预连接可省一次 TLS 握手 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <!-- 设计令牌与组件样式，从原来的内联 <style> 拆出。
+         用绝对路径 /assets/，由后端单独挂载该目录（见 api/main.py），
+         并对该目录统一下发 no-cache 头，改完代码刷新即生效。 -->
+    <link rel="stylesheet" href="/assets/css/theme.css">
+    <link rel="stylesheet" href="/assets/css/app.css">
+
+    <!--
+      第三方库锁定版本，避免上游发布破坏性更新导致线上崩溃。
+      DOMPurify 用于净化 Markdown 渲染结果（原版缺失，存在 XSS 风险）。
+      注意：原来引入的 @tailwindcss/browser 已移除——
+      它会在客户端实时编译 CSS，而全站只用到两条 @apply，得不偿失。
+    -->
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.544.0/dist/umd/lucide.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@14.1.3/marked.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js" defer></script>
+
+    <script type="module" src="/assets/js/main.js"></script>
+</head>
+<body>
+
+    <div class="chat-layout">
+
+        <!-- 移动端抽屉遮罩 -->
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+        <!-- ============================================
+             左侧边栏
+             ============================================ -->
+        <aside class="chat-sidebar" id="chatSidebar" aria-label="对话历史">
+
+            <div class="chat-sidebar-header">
+                <div class="sidebar-logo-main">MARXLEN</div>
+                <div class="sidebar-logo-sub">马列通</div>
+                <button class="new-chat-btn" type="button" id="newChatBtn">
+                    <i data-lucide="plus"></i>
+                    <span>新建对话</span>
+                </button>
+            </div>
+
+            <!-- 历史列表由 history.js 动态填充 -->
+            <div class="chat-history-section" id="historySection"></div>
+
+            <div class="chat-sidebar-footer">
+                <button class="sidebar-settings-btn" type="button" id="sidebarSettingsBtn" aria-label="设置">
+                    <i data-lucide="settings"></i>
+                    <span>设置</span>
+                </button>
+                <button class="sidebar-theme-btn" type="button" id="themeToggle" aria-label="切换主题" title="切换主题">
+                    <i data-lucide="monitor"></i>
+                </button>
+                <button class="sidebar-toggle" type="button" id="sidebarToggle"
+                        aria-label="收起侧边栏" aria-expanded="true" title="收起侧边栏">
+                    <i data-lucide="panel-left-close"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- ============================================
+             主对话区
+             ============================================ -->
+        <main class="chat-main">
+
+            <div class="chat-topbar">
+                <div class="topbar-left">
+                    <button class="hamburger-btn" type="button" id="hamburgerBtn" aria-label="打开侧边栏">
+                        <i data-lucide="menu"></i>
+                    </button>
+                </div>
+                <div class="topbar-right"></div>
+            </div>
+
+            <div class="chat-messages" id="chatMessages">
+
+                <!-- 对话大纲，随内容滚动 -->
+                <nav class="v-timeline" id="vTimeline" aria-label="对话大纲"></nav>
+
+                <!-- 空态欢迎屏 -->
+                <div class="welcome-container" id="welcomeContainer">
+                    <div class="welcome-icon">
+                        <i data-lucide="book-open"></i>
+                    </div>
+                    <h1 class="welcome-title">马列通</h1>
+                    <p class="welcome-subtitle">涵盖马克思、恩格斯、列宁、斯大林、毛泽东等经典著作的智能问答系统</p>
+                </div>
+
+                <!-- 消息流 -->
+                <div class="conversation-container" id="conversationContainer" style="display:none;"></div>
+
+            </div>
+
+            <!-- ============================================
+                 原文阅读器（左：书目录　中：书正文　右：检索窗口）
+                 "原文查询"模式下取代消息区，但下方输入区保持可用：
+                 划词可把原文送进输入框，再切到另外两个模式提问。
+                 ============================================ -->
+            <div class="reader-view" id="readerView" aria-label="原文阅读器">
+
+                <!-- 左栏：书目录。书目态是文献列表，读某本书时换成该书目录 -->
+                <div class="reader-sidebar" id="readerSidebar">
+                    <div class="reader-sidebar-header">
+                        <button class="reader-back-btn" type="button" id="readerBackBtn" aria-label="返回书目">
+                            <i data-lucide="library"></i>
+                            <span>书目</span>
+                        </button>
+                        <label for="readerFilter" class="sr-only">筛选书目或目录</label>
+                        <input type="search" class="reader-filter" id="readerFilter"
+                               placeholder="搜索书名 / 章节..." autocomplete="off">
+                    </div>
+                    <div class="reader-book-list" id="readerBookList"></div>
+                    <div class="reader-toc" id="readerToc" aria-label="目录"></div>
+                </div>
+
+                <!-- 中栏：书正文 -->
+                <div class="reader-main">
+                    <div class="reader-header">
+                        <button class="reader-pane-toggle" type="button" id="readerTocToggle"
+                                aria-label="收起/展开书目录" title="收起/展开书目录">
+                            <i data-lucide="panel-left"></i>
+                        </button>
+                        <h2 class="reader-title" id="readerTitle">原文书目</h2>
+                        <button class="reader-pane-toggle" type="button" id="readerSearchToggle"
+                                aria-label="收起/展开检索窗口" title="收起/展开检索窗口">
+                            <i data-lucide="panel-right"></i>
+                        </button>
+                    </div>
+                    <div class="reader-status" id="readerStatus"></div>
+                    <div class="reader-content" id="readerContent"></div>
+                </div>
+
+                <!-- 右栏：检索窗口。语义检索，结果可直接跳到正文位置 -->
+                <div class="reader-search-pane" id="readerSearchPane" aria-label="检索窗口">
+                    <div class="reader-search-header">
+                        <div class="reader-search-box">
+                            <i data-lucide="search"></i>
+                            <label for="readerSearchInput" class="sr-only">在原文中检索</label>
+                            <input type="search" class="reader-search-input" id="readerSearchInput"
+                                   placeholder="描述你要找的内容..." autocomplete="off">
+                        </div>
+                        <!-- 范围默认跟着当前正在读的书走，可切到全部文献 -->
+                        <div class="reader-scope" role="radiogroup" aria-label="检索范围">
+                            <button class="reader-scope-btn active" type="button"
+                                    data-scope="current" role="radio" aria-checked="true">当前书</button>
+                            <button class="reader-scope-btn" type="button"
+                                    data-scope="all" role="radio" aria-checked="false">全部文献</button>
+                        </div>
+                        <div class="reader-search-meta" id="readerSearchMeta"></div>
+                    </div>
+                    <div class="reader-search-results" id="readerSearchResults"></div>
+                </div>
+
+            </div>
+
+            <!-- 划词后浮出的操作按钮，把选中原文送进下方输入框 -->
+            <div class="reader-selection-tip" id="readerSelectionTip" hidden>
+                <button class="reader-selection-btn" type="button" id="readerQuoteBtn">
+                    <i data-lucide="quote"></i>
+                    <span>添加到对话框</span>
+                </button>
+            </div>
+
+            <!-- ============================================
+                 底部输入区
+                 ============================================ -->
+            <div class="chat-input-area">
+                <div class="chat-input-wrapper">
+
+                    <div class="mode-switcher" id="modeSwitcher" role="tablist" aria-label="问答模式">
+                        <div class="mode-tab active" data-mode="general" role="tab"
+                             tabindex="0" aria-selected="true">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                            <span>通用问答</span>
+                        </div>
+                        <div class="mode-tab" data-mode="methodology" role="tab"
+                             tabindex="0" aria-selected="false">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2a5 5 0 0 1 5 5c0 2.76-2.24 5-5 5s-5-2.24-5-5a5 5 0 0 1 5-5z"/><path d="M9 12v4a3 3 0 0 0 6 0v-4"/></svg>
+                            <span>马哲方法论</span>
+                        </div>
+                        <div class="mode-tab" data-mode="original" role="tab"
+                             tabindex="0" aria-selected="false">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                            <span>原文查询</span>
+                        </div>
+                    </div>
+
+                    <div class="mode-description" id="modeDescription">基于马克思主义理论回答一般问题</div>
+
+                    <div class="chat-input-box">
+                        <!-- 拖拽这里调整输入框高度：手柄放在顶部，
+                             往上拖变高、往下拖收缩，方向与边界移动一致 -->
+                        <div class="chat-resize-handle" id="chatResizeHandle"
+                             role="separator" aria-label="拖拽调整输入框高度" title="拖拽调整高度"></div>
+                        <!-- 划词引用的缩略卡片挂在这里，不占输入框正文 -->
+                        <div class="chat-quote-bar" id="chatQuoteBar"></div>
+                        <label for="chatTextarea" class="sr-only">输入你的问题</label>
+                        <textarea
+                            class="chat-textarea"
+                            id="chatTextarea"
+                            name="question"
+                            placeholder="输入你的问题..."
+                            rows="1"
+                        ></textarea>
+
+                        <div class="chat-input-toolbar">
+                            <div class="feature-toggles">
+                                <button class="feature-pill thinking" type="button" id="thinkingToggle"
+                                        title="深度思考模式" aria-pressed="false">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+                                    <span>深度思考</span>
+                                </button>
+                                <button class="feature-pill search" type="button" id="searchToggle"
+                                        title="联网搜索" aria-pressed="false">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                                    <span>联网搜索</span>
+                                </button>
+                            </div>
+
+                            <div class="model-selector-wrapper">
+                                <div class="model-selector" id="modelSelector" tabindex="0" role="button"
+                                     aria-label="选择模型" aria-haspopup="listbox" aria-expanded="false">
+                                    <span class="model-selector-name" id="modelSelectorName">加载中...</span>
+                                    <i data-lucide="chevron-down"></i>
+                                </div>
+                                <div class="model-dropdown" id="modelDropdown" role="listbox" aria-label="可用模型"></div>
+                            </div>
+
+                            <div class="toolbar-right">
+                                <button class="stop-btn" type="button" id="stopBtn" aria-label="停止生成">
+                                    <i data-lucide="square"></i>
+                                </button>
+                                <button class="send-btn" type="button" id="sendBtn" aria-label="发送">
+                                    <i data-lucide="arrow-up"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="input-hint">此为AI与文献综合回答，请谨慎辨别</div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- ============================================
+         设置面板（双栏：左侧分类导航 + 右侧内容）
+         ============================================ -->
+    <div class="settings-overlay" id="settingsOverlay">
+        <div class="settings-panel" id="settingsPanel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+
+            <!-- 左栏：标题 + 分类导航 -->
+            <div class="settings-sidebar">
+                <div class="settings-sidebar-header">
+                    <h2 id="settingsTitle">设置</h2>
+                </div>
+                <nav class="settings-nav" id="settingsNav" role="tablist" aria-orientation="vertical"
+                     aria-label="设置分类"></nav>
+            </div>
+
+            <!-- 右栏：当前分类的标题 + 内容 -->
+            <div class="settings-content">
+                <div class="settings-content-header">
+                    <div class="settings-content-heading">
+                        <h3 class="settings-content-title" id="settingsContentTitle">加载中</h3>
+                        <p class="settings-content-desc" id="settingsContentDesc"></p>
+                    </div>
+                    <button class="settings-close-btn" type="button" id="settingsCloseBtn" aria-label="关闭设置">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+                <div class="settings-content-body" id="settingsPanelBody">
+                    <p class="settings-loading">加载中...</p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ============================================
+         原文阅读器（左侧书目/目录 + 右侧正文）
+         作为"原文查询"模式的主视图内嵌在 chat-main 中，
+         与 chat-messages / chat-input-area 互斥显示。
+         ============================================ -->
+
+</body>
+</html>

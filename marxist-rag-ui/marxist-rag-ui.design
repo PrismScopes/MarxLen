@@ -1,0 +1,36 @@
+{
+  "data": [
+    {
+      "id": "page-index",
+      "title": "Marxist RAG Chat",
+      "type": "page",
+      "version": 2,
+      "createdAt": 1751466000000,
+      "canvasData": {
+        "x": 0,
+        "y": 0,
+        "group": 0
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/index.html",
+        "interactions": [
+          {
+            "type": "dom",
+            "event": "click",
+            "domId": "hero-search-btn",
+            "targetPageId": "page-search-results"
+          }
+        ]
+      }
+    }
+  ],
+  "config": {
+    "autoLayout": true,
+    "deviceType": "mobile",
+    "projectName": "马克思主义RAG知识库",
+    "windowSize": {
+      "width": 800,
+      "height": 600
+    }
+  }
+}

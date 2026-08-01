@@ -1,0 +1,81 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# ===== 虚拟环境 =====
+rag/.venv/
+
+# ===== 运行时缓存数据库（不提交） =====
+rag/cache_answers.db
+rag/cache_answers.db-shm
+rag/cache_answers.db-wal
+rag/cache_embeddings.db
+rag/cache_embeddings.db-shm
+rag/cache_embeddings.db-wal
+rag/documents.db-shm
+rag/documents.db-wal
+# 对话记录属于用户隐私，连同 WAL 副产物一起排除
+api/conversations.db
+api/conversations.db-shm
+api/conversations.db-wal
+
+# ===== 知识库索引（改由 GitHub Releases 分发，不入库） =====
+# 三个文件合计 1.16GB，通过 deploy\install.ps1 自动下载到本目录
+rag/documents.db
+rag/faiss_index.idx
+rag/bm25_index.pkl
+
+# ===== 环境配置 =====
+.env
+rag/.env
+# 用户在设置页改动的配置，属于本地状态，不入库
+config.json
+
+# ===== 建库原料/工具（不提交） =====
+# ww/ 本身要保留（内含放置说明），只忽略里面的语料文件，
+# 语料单独发布在 marxist-classics-markdown 仓库
+ww/*
+!ww/README.md
+pdf_ocr/
+# 建库与向量化脚本不对外分发：索引由本仓库直接提供预构建版本
+rag/ingest_philosophy.py
+clean_ww_texts.py
+rebuild_bm25_index.py
+
+# ===== 开发笔记 =====
+过程/
+marxist-rag-ui/TRAE-开发过程.md
+marxist-rag-ui/前端技术报告.md
+
+# ===== 数据库备份（体积大，仅本地留存） =====
+backup_*/
+
+# ===== 部署脚本（本地保留，不入库） =====
+# 安装/启动/关闭由打包后的 MarxLen.exe 承担，exe 通过 GitHub Releases 分发，
+# 不随代码仓库发布。脚本源码留在本地，便于重新打包。
+deploy/
+安装.bat
+启动.bat
+关闭.bat
+
+# ===== 调试残留 =====
+err_mcp.txt
+out_mcp.txt
+_probe*.py
+
+# ===== 编辑器 =====
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ===== 系统 =====
+Thumbs.db
+.DS_Store
+
+# ===== 日志 =====
+*.log

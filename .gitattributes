@@ -1,0 +1,5 @@
+# 知识库索引文件改为通过 GitHub Releases 分发，不再使用 Git LFS。
+# 理由：LFS 免费额度为 1GB 存储 + 1GB/月流量，三个索引共 1.16GB，
+# 存储本身已超限，且流量仅够少数几次下载。Releases 不受这些限制。
+# 用户在安装时由 deploy\install.ps1 自动从 Release 下载到 rag/ 目录。
+# 本文件保留空实现（含必要标注），避免 Git 提示缺省属性文件。
