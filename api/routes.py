@@ -3,7 +3,6 @@ import asyncio
 import json
 import logging
 import threading
-import portalocker
 from typing import Optional, List
 
 from dotenv import load_dotenv
@@ -13,14 +12,15 @@ from sse_starlette.sse import EventSourceResponse
 
 from .models import (
     ChatRequest, ChatResponse, SourceItem,
-    Conversation, ConversationDetail,
+    Conversation, ConversationDetail, ConversationRenameRequest,
+    MessageVariants, SwitchVariantRequest,
     ModelOption, ModelUpdateRequest,
-    SettingsResponse, SettingsItem,
-    SettingsUpdateRequest, CacheClearRequest,
+    SettingsUpdateRequest, SettingsResetRequest, CacheClearRequest,
     StatsResponse,
 )
 from .conversation_store import ConversationStore
 from .settings_store import SettingsStore
+from rag.config_store import get_config, CONFIG_SCHEMA
 
 # 加载 .env，用于读取模型配置
 load_dotenv(override=True)
@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api")
 conv_store = ConversationStore()
 settings_store = SettingsStore()
+config = get_config()
 
 # ── 全局 RAG 引擎引用（在 main.py 中初始化后注入）──
 rag_pipeline = None
@@ -54,8 +55,9 @@ async def chat(request: ChatRequest):
     # 1. 对话管理
     conv_id = request.conversation_id
     if not conv_id:
-        # 新对话：使用问题前 20 字作为标题
-        title = request.question[:20] + ("..." if len(request.question) > 20 else "")
+        # 新对话：取问题开头若干字作为标题
+        title_len = int(config.get("title_len"))
+        title = request.question[:title_len] + ("..." if len(request.question) > title_len else "")
         conv = conv_store.create_conversation(title=title)
         conv_id = conv.id
     else:
@@ -64,16 +66,50 @@ async def chat(request: ChatRequest):
             raise HTTPException(status_code=404, detail="对话不存在")
 
     # 2. 保存用户消息
-    conv_store.add_message(conv_id, "user", request.question)
+    #
+    # 改提问和重新生成都不能覆盖旧内容——旧内容是同一问题的另一个版本，
+    # 用户要能切回去看。所以这里不是追加，而是在同一个父节点下新开一个分支。
+    parent_id = request.parent_message_id
+    branch = False
+
+    if request.regenerate_of is not None:
+        # 重新生成：目标是某条助手消息，新回答要和它做兄弟，
+        # 即挂到它的父节点（也就是触发它的那条用户消息）下
+        target = conv_store.get_message(conv_id, request.regenerate_of)
+        if target is None:
+            raise HTTPException(status_code=404, detail="要重新生成的消息不存在")
+        if target[1] != "assistant":
+            raise HTTPException(status_code=400, detail="只能对助手回答重新生成")
+        # 用户消息不重复写入，直接把回答挂到原来那条提问下
+        user_msg_id = target[5]
+        branch = True
+    else:
+        if parent_id is not None:
+            # 修改提问后重发：parent_message_id 指向被改那条消息的父节点，
+            # 新提问与旧提问成为兄弟版本
+            if parent_id == 0:
+                # 0 是前端表达"根层"的约定值，根消息的 parent 为 NULL
+                parent_id = None
+            elif conv_store.get_message(conv_id, parent_id) is None:
+                raise HTTPException(status_code=404, detail="父消息不存在")
+            branch = True
+
+        user_msg = conv_store.add_message(
+            conv_id, "user", request.question,
+            parent_id=parent_id, branch=branch,
+        )
+        user_msg_id = user_msg.id
+        branch = False  # 助手回答接在这条新用户消息之后，不再分支
 
     # 3. 获取对话历史用于上下文
     history = []
+    msg_len = int(config.get("history_msg_len"))
     conv_detail = conv_store.get_conversation(conv_id)
     if conv_detail and conv_detail.messages:
         for msg in conv_detail.messages[:-1]:  # 排除刚插入的用户消息
             history.append({
                 "role": msg.role,
-                "content": msg.content[:500],  # 取前 500 字避免超长
+                "content": msg.content[:msg_len],  # 截断避免超长
             })
         logging.info(f"  上下文: {len(history)} 条历史消息")
 
@@ -83,13 +119,15 @@ async def chat(request: ChatRequest):
             full_answer = ""
             thinking_content = ""
             sources_data = []
+            search_refs = []
+            thinking_done_sent = False
 
             # 调用 RAG 流式接口（在线程中运行同步生成器，避免阻塞事件循环）
-            fetch_k = int(settings_store.get("fetch_k", 30))
-            top_k = int(settings_store.get("top_k", 8))
+            fetch_k = int(config.get("fetch_k"))
+            top_k = int(config.get("top_k"))
 
             loop = asyncio.get_running_loop()
-            queue = asyncio.Queue(maxsize=128)
+            queue = asyncio.Queue(maxsize=int(config.get("stream_queue_size")))
 
             def run_generator():
                 try:
@@ -118,7 +156,9 @@ async def chat(request: ChatRequest):
             try:
                 while True:
                     try:
-                        item = await asyncio.wait_for(queue.get(), timeout=60)
+                        item = await asyncio.wait_for(
+                            queue.get(), timeout=float(config.get("stream_timeout"))
+                        )
                     except asyncio.TimeoutError:
                         break  # 超时退出，不再等待
                     if item["type"] == "done":
@@ -127,6 +167,25 @@ async def chat(request: ChatRequest):
                         break
                     elif item["type"] == "error":
                         raise Exception(item.get("detail", "未知错误"))
+                    elif item["type"] == "stage":
+                        # 检索各阶段的进度，前端据此展示"正在做什么"，
+                        # 填补提问到首个 token 之间的等待
+                        yield {
+                            "event": "stage",
+                            "data": json.dumps({
+                                "stage": item.get("stage", ""),
+                                "status": item.get("status", "running"),
+                                "text": item.get("text", ""),
+                                "detail": item.get("detail"),
+                            }, ensure_ascii=False),
+                        }
+                    elif item["type"] == "search_result":
+                        # 联网搜索结果先于正文送达，前端据此渲染参考链接面板
+                        search_refs = item.get("references", [])
+                        yield {
+                            "event": "search_result",
+                            "data": json.dumps({"references": search_refs}, ensure_ascii=False),
+                        }
                     elif item["type"] == "thinking":
                         content = item["content"]
                         thinking_content += content
@@ -136,6 +195,10 @@ async def chat(request: ChatRequest):
                         }
                     elif item["type"] == "token":
                         content = item["content"]
+                        # 首个正文 token 意味着思考阶段结束，通知前端收起思考面板
+                        if thinking_content and not thinking_done_sent:
+                            thinking_done_sent = True
+                            yield {"event": "thinking_done", "data": "{}"}
                         full_answer += content
                         yield {
                             "event": "token",
@@ -154,10 +217,20 @@ async def chat(request: ChatRequest):
                     score=float(s.get("score", 0)),
                     excerpt=s.get("excerpt", ""),
                     source_url=s.get("source_url", ""),
+                    # 这两个字段是原文阅读器定位的依据，缺了来源卡片就跳不过去
+                    doc_uuid=s.get("doc_uuid", ""),
+                    source_file=s.get("source_file", ""),
                 ))
-            conv_store.add_message(conv_id, "assistant", full_answer, sources=source_items)
+            # 显式挂到本轮那条用户消息下：重新生成时激活叶子可能已被
+            # 别的请求改动，靠"接在末尾"会挂错位置
+            assistant_msg = conv_store.add_message(
+                conv_id, "assistant", full_answer, sources=source_items,
+                parent_id=user_msg_id, branch=branch,
+            )
 
             # 发送完成事件（含来源、联网搜索结果、conversation_id）
+            # message_id / variant_* 让前端立刻能渲染版本切换器，
+            # 不必再多请求一次对话详情
             yield {
                 "event": "done",
                 "data": json.dumps({
@@ -165,6 +238,10 @@ async def chat(request: ChatRequest):
                     "sources": [s.model_dump() for s in source_items],
                     "references": search_refs,
                     "thinking_content": thinking_content if request.thinking_mode else "",
+                    "message_id": assistant_msg.id,
+                    "user_message_id": user_msg_id,
+                    "variant_count": assistant_msg.variant_count,
+                    "variant_index": assistant_msg.variant_index,
                 }, ensure_ascii=False),
             }
 
@@ -187,7 +264,10 @@ async def chat(request: ChatRequest):
 # ================================================================
 
 @router.get("/conversations", response_model=list[Conversation])
-async def list_conversations(limit: int = 50):
+async def list_conversations(limit: Optional[int] = None):
+    """不传 limit 时使用设置项 conversation_list_limit"""
+    if limit is None:
+        limit = int(config.get("conversation_list_limit"))
     return conv_store.get_conversations(limit=limit)
 
 
@@ -201,6 +281,71 @@ async def get_conversation(conv_id: str):
     if detail is None:
         raise HTTPException(status_code=404, detail="对话不存在")
     return detail
+
+
+# ================================================================
+# 3.2 GET /api/conversations/{id}/messages/{mid}/variants - 取同级版本
+# ================================================================
+
+@router.get("/conversations/{conv_id}/messages/{msg_id}/variants",
+            response_model=MessageVariants)
+async def get_message_variants(conv_id: str, msg_id: int):
+    """列出某条消息的全部版本
+
+    前端渲染「< 2/2 >」时，若只需要知道有几个版本，对话详情里的
+    variant_count 就够了；需要预览各版本内容时才调这个接口。
+    """
+    if conv_store.get_conversation(conv_id) is None:
+        raise HTTPException(status_code=404, detail="对话不存在")
+
+    result = conv_store.get_variants(conv_id, msg_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="消息不存在")
+    return result
+
+
+# ================================================================
+# 3.3 POST /api/conversations/{id}/switch - 切换到指定版本
+# ================================================================
+
+@router.post("/conversations/{conv_id}/switch", response_model=ConversationDetail)
+async def switch_variant(conv_id: str, request: SwitchVariantRequest):
+    """把激活分支切到经过 message_id 的那一条
+
+    返回切换后的完整对话详情，前端直接整体重渲染即可，
+    不需要自己推算哪些消息该换掉。
+    """
+    if conv_store.get_conversation(conv_id) is None:
+        raise HTTPException(status_code=404, detail="对话不存在")
+
+    detail = conv_store.switch_variant(conv_id, request.message_id)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="消息不存在")
+    return detail
+
+
+# ================================================================
+# 3.5 PATCH /api/conversations/{id} - 重命名对话
+# ================================================================
+
+@router.patch("/conversations/{conv_id}", response_model=Conversation)
+async def rename_conversation(conv_id: str, request: ConversationRenameRequest):
+    """修改对话标题。前端右键菜单的"重命名"走这个接口。"""
+    detail = conv_store.get_conversation(conv_id)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="对话不存在")
+
+    title = request.title.strip()
+    if not title:
+        raise HTTPException(status_code=422, detail="标题不能为空")
+    # 限制长度，避免侧边栏被超长标题撑破
+    title = title[:100]
+
+    conv_store.update_title(conv_id, title)
+    for conv in conv_store.get_conversations(limit=200):
+        if conv.id == conv_id:
+            return conv
+    raise HTTPException(status_code=404, detail="对话不存在")
 
 
 # ================================================================
@@ -222,13 +367,13 @@ async def delete_conversation(conv_id: str):
 
 @router.get("/models", response_model=list[ModelOption])
 async def list_models():
-    """从 .env 配置中读取可用模型列表
-    
-    通过 DEEPSEEK_MODEL_LIST 配置，格式：id1:显示名1,id2:显示名2
-    示例：DEEPSEEK_MODEL_LIST=deepseek-chat:DeepSeek-V3,deepseek-reasoner:DeepSeek-R1
-    不配置时默认显示 DEEPSEEK_MODEL 指定模型的单选项。
+    """读取可用模型列表
+
+    候选项来自设置项 model_list（落库为 .env 的 DEEPSEEK_MODEL_LIST），
+    格式：id1:显示名1,id2:显示名2
+    留空时只返回当前正在使用的模型这一项。
     """
-    model_list_raw = os.getenv("DEEPSEEK_MODEL_LIST", "")
+    model_list_raw = config.get("model_list") or ""
     if model_list_raw:
         models = []
         for item in model_list_raw.split(","):
@@ -244,8 +389,8 @@ async def list_models():
         if models:
             return models
 
-    # 没有任何列表配置，显示 DEEPSEEK_MODEL 指定模型
-    configured_model = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+    # 没有配置候选列表，只显示当前模型
+    configured_model = config.get("model")
     return [ModelOption(id=configured_model, name=configured_model, provider="DeepSeek")]
 
 
@@ -255,19 +400,14 @@ async def list_models():
 
 @router.post("/settings/model")
 async def update_model(req: ModelUpdateRequest):
-    """更新当前使用的模型（通过更新 .env 文件中的 DEEPSEEK_MODEL）"""
-    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "rag", ".env")
+    """更新当前使用的模型（写入 rag/.env 的 DEEPSEEK_MODEL）
+
+    等价于 PUT /api/settings {"updates": {"model": ...}}，
+    保留此端点是为了兼容前端已有的模型切换入口。
+    """
     try:
-        with portalocker.Lock(env_path, mode='r', encoding='utf-8', flags=portalocker.LOCK_EX) as f:
-            lines = f.readlines()
-        with portalocker.Lock(env_path, mode='w', encoding='utf-8', flags=portalocker.LOCK_EX) as f:
-            for line in lines:
-                if line.strip().startswith("DEEPSEEK_MODEL="):
-                    f.write(f"DEEPSEEK_MODEL={req.model}\n")
-                else:
-                    f.write(line)
-        # 重新加载环境变量
-        load_dotenv(override=True)
+        config.update({"model": req.model})
+        _apply_runtime_settings({"model": req.model})
         logger.info(f"模型已更新为: {req.model}")
         return {"ok": True, "model": req.model}
     except Exception as e:
@@ -284,82 +424,23 @@ async def health_check():
 
 
 # ================================================================
-# 8. GET /api/settings - 获取所有设置
+# 8. GET /api/settings - 获取所有设置（含前端渲染元数据）
 # ================================================================
 
-@router.get("/settings", response_model=SettingsResponse)
+@router.get("/settings")
 async def get_settings():
-    """获取所有可配置的设置项"""
-    raw = settings_store.get_all()
+    """返回完整的设置描述，供前端自动渲染设置页面
 
-    settings_list = [
-        SettingsItem(
-            key="model",
-            label="当前模型",
-            type="select",
-            value=raw.get("model", ""),
-            description="用于生成回答的大语言模型",
-            category="general",
-        ),
-        SettingsItem(
-            key="api_base_url",
-            label="API 地址",
-            type="text",
-            value=raw.get("api_base_url", ""),
-            description="DeepSeek API 端点地址",
-            category="api",
-        ),
-        SettingsItem(
-            key="embed_api_base_url",
-            label="嵌入 API 地址",
-            type="text",
-            value=raw.get("embed_api_base_url", ""),
-            description="Embedding 和 Rerank 的 API 端点",
-            category="api",
-        ),
-        SettingsItem(
-            key="temperature",
-            label="温度参数",
-            type="number",
-            value=str(raw.get("temperature", 0.3)),
-            description="控制回答的创造性（0=精确，1=多样）",
-            category="general",
-        ),
-        SettingsItem(
-            key="top_k",
-            label="返回结果数",
-            type="number",
-            value=str(raw.get("top_k", 8)),
-            description="每次回答展示几个参考来源",
-            category="search",
-        ),
-        SettingsItem(
-            key="fetch_k",
-            label="候选数量",
-            type="number",
-            value=str(raw.get("fetch_k", 30)),
-            description="重排序前从检索池取多少候选",
-            category="search",
-        ),
-        SettingsItem(
-            key="enable_reranker",
-            label="启用重排序",
-            type="boolean",
-            value=str(raw.get("enable_reranker", True)).lower(),
-            description="关闭可节省一次 API 调用（用 RRF 排序代替）",
-            category="search",
-        ),
-        SettingsItem(
-            key="default_mode",
-            label="默认模式",
-            type="select",
-            value=raw.get("default_mode", "general"),
-            options=["general", "methodology", "original"],
-            description="启动时默认的问答模式",
-            category="general",
-        ),
-    ]
-    return SettingsResponse(settings=settings_list)
+    响应结构：
+      categories: [{id, label, icon, description}]  分组，顺序即显示顺序
+      items:      [{key, label, type, value, default, category, description,
+                    options, min, max, step, unit, secret, is_set,
+                    advanced, requires_restart, is_default}]
+
+    前端无需硬编码任何字段，遍历 items 按 type 渲染对应控件即可。
+    新增配置项只需在 rag/config_store.py 的 CONFIG_SCHEMA 追加一条。
+    """
+    return config.get_schema()
 
 
 # ================================================================
@@ -368,20 +449,77 @@ async def get_settings():
 
 @router.put("/settings")
 async def update_settings(req: SettingsUpdateRequest):
-    """更新设置"""
+    """更新设置
+
+    非法值会被自动钳制到合法区间或回退默认值，不会报错。
+    未知的 key 会被忽略。敏感项（API Key）传空字符串表示不修改。
+    """
     try:
-        result = settings_store.update(req.updates)
-        # 同步运行时设置到 RAG 实例
-        if rag_pipeline is not None:
-            if "temperature" in req.updates:
-                rag_pipeline.llm.temperature = float(req.updates["temperature"])
-            if "top_k" in req.updates:
-                rag_pipeline.retriever.top_k = int(req.updates["top_k"])
-            if "fetch_k" in req.updates:
-                rag_pipeline.retriever.fetch_k = int(req.updates["fetch_k"])
-        return {"ok": True, "settings": result}
+        settings = config.update(req.updates)
+        _apply_runtime_settings(req.updates)
+
+        # 告知前端哪些改动需要重启才能生效
+        restart_keys = [
+            k for k in req.updates
+            if any(it.key == k and it.requires_restart for it in CONFIG_SCHEMA)
+        ]
+        return {
+            "ok": True,
+            "settings": settings,
+            "restart_required": restart_keys,
+        }
     except Exception as e:
+        logger.exception("更新设置失败")
         raise HTTPException(status_code=500, detail=f"更新设置失败: {e}")
+
+
+# ================================================================
+# 9b. POST /api/settings/reset - 恢复默认设置
+# ================================================================
+
+@router.post("/settings/reset")
+async def reset_settings(req: SettingsResetRequest):
+    """恢复默认值。不传 key 则重置全部。
+
+    API 地址与密钥（存于 .env）不参与重置，避免误删用户凭据。
+    """
+    try:
+        settings = config.reset(req.key)
+        _apply_runtime_settings(settings)
+        return {"ok": True, "settings": settings}
+    except Exception as e:
+        logger.exception("重置设置失败")
+        raise HTTPException(status_code=500, detail=f"重置设置失败: {e}")
+
+
+def _apply_runtime_settings(updates: dict):
+    """把设置同步到已实例化的对象上，使其无需重启即生效
+
+    只有那些在初始化时被读取、之后不再重新读取的值才需要在此同步。
+    top_k / fetch_k 等在每次请求时都会重新读配置，无需处理。
+    """
+    if rag_pipeline is None:
+        return
+    try:
+        if "temperature" in updates:
+            rag_pipeline.llm.temperature = config.get("temperature")
+        if "max_tokens" in updates:
+            mt = config.get("max_tokens")
+            # 0 表示不限制，交由模型自行决定
+            rag_pipeline.llm.max_tokens = mt if mt > 0 else None
+        if "top_p" in updates:
+            rag_pipeline.llm.top_p = config.get("top_p")
+        if "model" in updates:
+            new_model = config.get("model")
+            rag_pipeline.model_name = new_model
+            rag_pipeline.llm.model_name = new_model
+        if "reader_corpus_dir" in updates:
+            # 换了语料目录，旧正文缓存全部失效
+            from api.reader import clear_cache as clear_reader_cache
+            clear_reader_cache()
+    except Exception as e:
+        # 同步失败不应让整个请求失败，配置本身已保存成功
+        logger.warning(f"运行时设置同步失败（重启后仍会生效）: {e}")
 
 
 # ================================================================

@@ -1,171 +1,3 @@
-<!DOCTYPE html>
-<html lang="zh-CN" class="light">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MarxLen - 马列通 (纯 UI 演示)</title>
-
-    <!-- Google Fonts: Noto Serif SC (title) + Noto Sans SC (body) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
-
-    <style id="theme-vars">
-/* ============================================
-   Marxist RAG Knowledge Base - Brand Design System
-   Theme: Advanced Red + White (Marxist Theory)
-   Tone: Editorial / Academic / Solemn
-   ============================================ */
-
-:root {
-  /* --- Primary Color System --- */
-  --color-primary: #8B1A1A;
-  --color-primary-light: #A52828;
-  --color-primary-lighter: #C44040;
-  --color-primary-dark: #6B1010;
-  --color-primary-darker: #4A0A0A;
-  --color-primary-50: rgba(139, 26, 26, 0.05);
-  --color-primary-100: rgba(139, 26, 26, 0.10);
-  --color-primary-200: rgba(139, 26, 26, 0.20);
-  --color-primary-500: rgba(139, 26, 26, 0.50);
-  --color-primary-700: rgba(139, 26, 26, 0.70);
-  --color-primary-900: rgba(139, 26, 26, 0.90);
-
-  /* --- Neutral Color System --- */
-  --color-bg: #FFFFFF;
-  --color-bg-secondary: #F9F7F5;
-  --color-bg-tertiary: #F3F0EC;
-  --color-bg-elevated: #FFFFFF;
-  --color-surface: #FFFFFF;
-  --color-surface-secondary: #F5F2EE;
-  --color-border: #E8E2DA;
-  --color-border-light: #F0ECE6;
-  --color-border-dark: #D1C9BE;
-  --color-text-primary: #1A1410;
-  --color-text-secondary: #5C5347;
-  --color-text-tertiary: #8A8078;
-  --color-text-inverse: #FFFFFF;
-  --color-text-on-primary: #FFFFFF;
-  --color-text-link: #8B1A1A;
-  --color-text-link-hover: #6B1010;
-
-  /* --- State Colors --- */
-  --state-success: #2D6A4F;
-  --state-warning: #B45309;
-  --state-error: #B91C1C;
-  --state-info: #1E5A8A;
-
-  /* --- Typography System --- */
-  --font-family-title: 'Noto Serif SC', 'Source Han Serif SC', 'SimSun', Georgia, serif;
-  --font-family-body: 'Noto Sans SC', 'Source Han Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-  --font-family-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
-
-  --font-size-display: 2.5rem;
-  --font-size-h1: 2rem;
-  --font-size-h2: 1.5rem;
-  --font-size-h3: 1.25rem;
-  --font-size-h4: 1.125rem;
-  --font-size-body: 0.9375rem;
-  --font-size-body-sm: 0.875rem;
-  --font-size-caption: 0.75rem;
-
-  --font-weight-normal: 400;
-  --font-weight-medium: 500;
-  --font-weight-semibold: 600;
-  --font-weight-bold: 700;
-
-  --line-height-tight: 1.25;
-  --line-height-normal: 1.6;
-  --line-height-relaxed: 1.8;
-  --letter-spacing-tight: -0.02em;
-  --letter-spacing-normal: 0;
-  --letter-spacing-wide: 0.05em;
-
-  /* --- Radius System --- */
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-full: 9999px;
-
-  /* --- Spacing System --- */
-  --space-1: 0.25rem;
-  --space-2: 0.5rem;
-  --space-3: 0.75rem;
-  --space-4: 1rem;
-  --space-5: 1.25rem;
-  --space-6: 1.5rem;
-  --space-8: 2rem;
-  --space-10: 2.5rem;
-  --space-12: 3rem;
-  --space-16: 4rem;
-  --space-20: 5rem;
-  --space-24: 6rem;
-
-  /* --- Shadow System (static alpha <= 0.05) --- */
-  --shadow-sm: 0 1px 2px rgba(26, 20, 16, 0.04);
-  --shadow-md: 0 2px 8px rgba(26, 20, 16, 0.05);
-  --shadow-lg: 0 8px 24px rgba(26, 20, 16, 0.05);
-  --shadow-float: 0 12px 40px rgba(26, 20, 16, 0.10);
-  --shadow-none: none;
-
-  /* --- Transition --- */
-  --transition-fast: 150ms ease;
-  --transition-normal: 250ms ease;
-  --transition-slow: 350ms ease;
-}
-
-/* --- Dark Mode --- */
-.dark {
-  --color-primary: #D44040;
-  --color-primary-light: #E05555;
-  --color-primary-lighter: #F07070;
-  --color-primary-dark: #B83030;
-  --color-primary-darker: #901818;
-  --color-primary-50: rgba(212, 64, 64, 0.08);
-  --color-primary-100: rgba(212, 64, 64, 0.15);
-  --color-primary-200: rgba(212, 64, 64, 0.25);
-  --color-primary-500: rgba(212, 64, 64, 0.55);
-  --color-primary-700: rgba(212, 64, 64, 0.75);
-  --color-primary-900: rgba(212, 64, 64, 0.92);
-
-  --color-bg: #121010;
-  --color-bg-secondary: #1A1816;
-  --color-bg-tertiary: #222018;
-  --color-bg-elevated: #1E1C1A;
-  --color-surface: #1E1C1A;
-  --color-surface-secondary: #262420;
-  --color-border: #332E28;
-  --color-border-light: #2A2620;
-  --color-border-dark: #443E36;
-  --color-text-primary: #F0ECE6;
-  --color-text-secondary: #B5ADA2;
-  --color-text-tertiary: #7A7268;
-  --color-text-inverse: #121010;
-  --color-text-on-primary: #FFFFFF;
-  --color-text-link: #E05555;
-  --color-text-link-hover: #F07070;
-
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.20);
-  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.25);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.30);
-  --shadow-float: 0 12px 40px rgba(0, 0, 0, 0.40);
-}
-    </style>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
-    <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <style type="text/tailwindcss">
-  @theme inline {
-    --color-primary: var(--color-primary);
-    --color-border: var(--color-border);
-  }
-  @layer base {
-    body { background: var(--color-surface); color: var(--color-text-primary); }
-    td, th { @apply break-words; word-break: break-all; word-break: auto-phrase; }
-    th { @apply whitespace-nowrap; }
-  }
-    </style>
-    <style>
       /* ============================================
          Chat Interface - Base Reset
          ============================================ */
@@ -576,6 +408,8 @@
         opacity: 0;
         pointer-events: none;
       }
+
+
 
       .sidebar-settings-btn {
         display: flex;
@@ -1123,6 +957,71 @@
       .thinking-step.done {
         opacity: 0.6;
       }
+      /* 检索失败不是错误：仍会基于理论素养作答，用中性的暖色而非报错红 */
+      .thinking-step.failed {
+        opacity: 0.75;
+        color: var(--color-warning, #b7791f);
+      }
+
+      /* ── 问题解构卡片 ── */
+
+      /* 缩进到与阶段文案对齐（图标 16px + gap 8px） */
+      .stage-detail {
+        margin: 2px 0 2px 24px;
+        font-size: var(--font-size-caption);
+        color: var(--color-text-tertiary);
+      }
+      .stage-detail > summary {
+        cursor: pointer;
+        color: var(--color-primary);
+        opacity: 0.8;
+        list-style: none;
+        user-select: none;
+      }
+      .stage-detail > summary::-webkit-details-marker {
+        display: none;
+      }
+      .stage-detail > summary::before {
+        content: '▸ ';
+      }
+      .stage-detail[open] > summary::before {
+        content: '▾ ';
+      }
+      .stage-detail > summary:hover {
+        opacity: 1;
+      }
+      .stage-detail-body {
+        margin-top: 6px;
+        padding: 8px 10px;
+        line-height: var(--line-height-relaxed);
+        background: var(--color-bg-secondary);
+        border-left: 2px solid var(--color-border);
+        border-radius: var(--radius-sm);
+      }
+      .stage-detail-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        margin-bottom: 6px;
+      }
+      .stage-tag {
+        padding: 1px 7px;
+        color: var(--color-primary);
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: 10px;
+      }
+      .stage-detail-line + .stage-detail-line {
+        margin-top: 4px;
+      }
+      .stage-detail-key {
+        margin-right: 6px;
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-secondary);
+      }
+      .stage-detail-key::after {
+        content: '：';
+      }
       .thinking-step-icon {
         width: 16px;
         height: 16px;
@@ -1348,6 +1247,61 @@
         height: 15px;
       }
 
+      /* ── 版本切换器 < n/m > ── */
+
+      /* 同一个提问改过多次、或回答重新生成过，就会有多个版本。
+         切换器要常显而不是 hover 才出现：它是"这里还有别的版本"
+         的唯一提示，藏起来等于没有 */
+      .msg-variant-switch {
+        display: inline-flex;
+        align-items: center;
+        gap: 1px;
+        margin-right: var(--space-2);
+        opacity: 1;
+      }
+      .msg-variant-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        padding: 0;
+        border: none;
+        background: transparent;
+        color: var(--color-text-tertiary);
+        cursor: pointer;
+        border-radius: var(--radius-sm);
+        transition: all var(--transition-fast);
+      }
+      .msg-variant-btn:hover:not(:disabled) {
+        color: var(--color-text-primary);
+        background-color: var(--color-bg-tertiary);
+      }
+      /* 首个/末个版本时对应箭头禁用，但保留占位，
+         否则切到边界时按钮消失、后面的数字会左右跳 */
+      .msg-variant-btn:disabled {
+        opacity: 0.3;
+        cursor: default;
+      }
+      .msg-variant-btn svg,
+      .msg-variant-btn i {
+        width: 13px;
+        height: 13px;
+      }
+      .msg-variant-label {
+        min-width: 30px;
+        text-align: center;
+        font-size: var(--font-size-caption);
+        font-variant-numeric: tabular-nums;
+        color: var(--color-text-tertiary);
+        user-select: none;
+      }
+
+      /* 用户消息的版本切换器跟编辑按钮排在一起 */
+      .user-msg-actions .msg-variant-switch {
+        margin-right: 0;
+      }
+
       /* ============================================
          Empty / Welcome state
          ============================================ */
@@ -1399,6 +1353,7 @@
         max-width: 420px;
         margin-bottom: 32px;
       }
+
 
       /* ============================================
          Bottom Input Area
@@ -1702,7 +1657,10 @@
       }
 
       .chat-textarea {
-        flex: 1;
+        /* 不能用 flex:1：在 column 容器里它会让 flex-basis 接管高度，
+           inline 写的 height（拖拽调高）就失效了 */
+        flex: 0 0 auto;
+        width: 100%;
         border: none;
         outline: none;
         background: transparent;
@@ -1710,16 +1668,120 @@
         font-size: var(--font-size-body);
         color: var(--color-text-primary);
         line-height: var(--line-height-normal);
+        /* 用下方的拖拽手柄调高，而不是浏览器原生的右下角 resize
+           ——原生手柄会和工具栏里的按钮抢位置 */
         resize: none;
         min-height: 36px;
-        max-height: 200px;
+        /* 自动增高的上限。手动拖拽时 JS 会写 inline 的 height 与 maxHeight，
+           覆盖这里的值，所以拖到更高也不会被截断 */
+        max-height: 45vh;
         padding: 8px 0;
         overflow-y: auto;
-        scrollbar-width: none;
       }
 
+      /* 滚动条必须可见：内容超过高度上限时，没有滚动条用户
+         根本不知道上面还有内容，只会觉得"内容看不清" */
+      .chat-textarea {
+        scrollbar-width: thin;
+        scrollbar-color: var(--color-border) transparent;
+      }
       .chat-textarea::-webkit-scrollbar {
+        width: 8px;
+      }
+      .chat-textarea::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .chat-textarea::-webkit-scrollbar-thumb {
+        background: var(--color-border);
+        border-radius: 4px;
+      }
+      .chat-textarea::-webkit-scrollbar-thumb:hover {
+        background: var(--color-text-tertiary);
+      }
+
+      /* ── 输入框高度拖拽手柄 ── */
+
+      .chat-resize-handle {
+        flex-shrink: 0;
+        height: 10px;
+        margin: 0 0 2px;
+        cursor: ns-resize;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      /* 手柄本身没有边框，用一条短横线示意可拖 */
+      .chat-resize-handle::before {
+        content: '';
+        width: 34px;
+        height: 3px;
+        border-radius: 2px;
+        background: var(--color-border);
+        transition: var(--transition-fast);
+      }
+      .chat-resize-handle:hover::before,
+      .chat-resize-handle.dragging::before {
+        background: var(--color-primary);
+        width: 46px;
+      }
+
+      /* ── 划词引用的缩略卡片 ── */
+
+      .chat-quote-bar:empty {
         display: none;
+      }
+      .chat-quote-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 6px;
+      }
+      /* 只显示图标 + 出处，不铺开正文：正文动辄几百字，
+         铺开会把输入框顶掉，缩略成一枚卡片，悬停看全文 */
+      .chat-quote-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        max-width: 260px;
+        padding: 4px 6px 4px 8px;
+        font-size: var(--font-size-caption);
+        color: var(--color-text-secondary);
+        background: var(--color-bg-secondary);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+      }
+      .chat-quote-chip svg {
+        flex-shrink: 0;
+        width: 13px;
+        height: 13px;
+        color: var(--color-primary);
+      }
+      .chat-quote-label {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .chat-quote-remove {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 17px;
+        height: 17px;
+        color: var(--color-text-tertiary);
+        background: transparent;
+        border: none;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+      }
+      .chat-quote-remove:hover {
+        color: var(--color-error, #c0392b);
+        background: var(--color-surface);
+      }
+      .chat-quote-remove svg {
+        width: 12px;
+        height: 12px;
+        color: currentColor;
       }
 
       .chat-textarea::placeholder {
@@ -1870,122 +1932,11 @@
         width: 18px;
         height: 18px;
       }
-      .settings-panel-body {
-        padding: 16px 24px 24px 24px;
-        overflow-y: auto;
-        flex: 1;
-      }
-      .settings-section {
-        margin-bottom: 24px;
-      }
-      .settings-section:last-child {
-        margin-bottom: 0;
-      }
-      .settings-section-title {
-        font-size: 12px;
-        font-weight: var(--font-weight-semibold);
-        color: var(--color-text-tertiary);
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        margin-bottom: 12px;
-        padding-bottom: 8px;
-        border-bottom: 1px solid var(--color-border-light);
-      }
-      .settings-item {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 10px 0;
-        gap: 16px;
-      }
-      .settings-item + .settings-item {
-        border-top: 1px solid var(--color-border-light);
-      }
-      .settings-item-label {
-        font-size: var(--font-size-body);
-        color: var(--color-text-secondary);
-        flex-shrink: 0;
-      }
-      .settings-item-control {
-        flex-shrink: 0;
-      }
-      .settings-select {
-        padding: 6px 28px 6px 10px;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-sm);
-        background-color: var(--color-bg);
-        color: var(--color-text-primary);
-        font-size: var(--font-size-body-sm);
-        cursor: pointer;
-        appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 8px center;
-        min-width: 120px;
-      }
-      .settings-select:focus {
-        outline: 2px solid var(--color-primary-200);
-        border-color: var(--color-primary);
-      }
-      .settings-about {
-        padding: 16px 0;
-        text-align: center;
-      }
-      .settings-about-name {
-        font-size: 20px;
-        font-weight: var(--font-weight-semibold);
-        color: var(--color-text-primary);
-        margin-bottom: 4px;
-      }
-      .settings-about-desc {
-        font-size: var(--font-size-body-sm);
-        color: var(--color-text-tertiary);
-        margin-bottom: 8px;
-      }
-      .settings-about-version {
-        font-size: 12px;
-        color: var(--color-text-tertiary);
-      }
-      .settings-item-desc {
-        font-size: var(--font-size-caption);
-        color: var(--color-text-tertiary);
-        margin-top: 4px;
-        line-height: 1.4;
-      }
-      .settings-input {
-        width: 100%;
-        padding: 6px 10px;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-sm);
-        background: var(--color-surface);
-        color: var(--color-text-primary);
-        font-size: var(--font-size-body-sm);
-        font-family: var(--font-family-body);
-        box-sizing: border-box;
-      }
-      .settings-input:focus {
-        outline: none;
-        border-color: var(--color-primary);
-        box-shadow: 0 0 0 2px var(--color-primary-100);
-      }
-      .settings-action-btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: 6px 12px;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-sm);
-        background: var(--color-surface);
-        color: var(--color-text-secondary);
-        font-size: var(--font-size-caption);
-        cursor: pointer;
-        transition: all var(--transition-fast);
-      }
-      .settings-action-btn:hover {
-        border-color: var(--color-primary);
-        color: var(--color-primary);
-        background: var(--color-primary-50);
-      }
+      /* 说明：早期单栏设置面板的样式（.settings-panel-body / .settings-section /
+         .settings-item + .settings-item 等）已随双栏改造删除。
+         其中 .settings-item + .settings-item 的 border-top 会与新版
+         .settings-item 的 border-bottom 叠成 2px 双线，是实测发现的问题。
+         双栏面板的完整样式见本文件末尾的 "Settings Panel - 双栏主从布局" 一节。 */
 
       /* ── Custom Inline Dialog ─────────────────────────── */
       .inline-dialog-overlay {
@@ -2178,634 +2129,1142 @@
           padding: 3px 8px;
         }
       }
-    </style>
-</head>
-<body>
 
-    <div class="chat-layout">
+      /* ============================================
+         重构新增的工具类与组件样式
+         ============================================ */
 
-        <!-- Sidebar Overlay (mobile) -->
-        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+      /* 仅供屏幕阅读器读取，视觉上隐藏 */
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
 
-        <!-- ============================================
-             LEFT SIDEBAR
-             ============================================ -->
-        <aside class="chat-sidebar" id="chatSidebar">
+      /* 侧边栏主题切换按钮，与设置按钮同排 */
+      .sidebar-theme-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border: none;
+        border-radius: var(--radius-md);
+        background: transparent;
+        color: rgba(255, 255, 255, 0.55);
+        cursor: pointer;
+        transition: var(--transition-fast);
+        flex-shrink: 0;
+      }
+      .sidebar-theme-btn:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: rgba(255, 255, 255, 0.9);
+      }
+      .sidebar-theme-btn svg {
+        width: 16px;
+        height: 16px;
+      }
 
-            <!-- Sidebar Header / Logo -->
-            <div class="chat-sidebar-header">
-                <div class="sidebar-logo-main">MARXLEN</div>
-                <div class="sidebar-logo-sub">马列通</div>
-                <button class="new-chat-btn" type="button" id="newChatBtn">
-                    <i data-lucide="plus"></i>
-                    <span>新建对话</span>
-                </button>
-            </div>
+      /* 历史列表的空状态提示（原来是内联 style） */
+      .history-empty-hint {
+        padding: 4px 10px;
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.2);
+      }
 
-            <!-- History list (static demo) -->
-            <div class="chat-history-section" id="historySection">
-                <!-- 今天 -->
-                <div class="history-time-group">今天</div>
-                <div class="history-item active" data-conv-id="1">
-                    <i data-lucide="message-circle" style="width:14px;height:14px;flex-shrink:0;opacity:0.5;"></i>
-                    <span class="history-item-text">历史唯物主义与生产力发展</span>
-                </div>
-                <div class="history-item" data-conv-id="2">
-                    <i data-lucide="message-circle" style="width:14px;height:14px;flex-shrink:0;opacity:0.5;"></i>
-                    <span class="history-item-text">《资本论》中商品拜物教的分析</span>
-                </div>
-                <div class="history-item" data-conv-id="3">
-                    <i data-lucide="message-circle" style="width:14px;height:14px;flex-shrink:0;opacity:0.5;"></i>
-                    <span class="history-item-text">列宁帝国主义论的核心观点</span>
-                </div>
+      /* 设置面板的加载与错误占位（settings.js 渲染骨架时使用）。
+         注：.settings-stats 已无引用，.settings-actions-row 的定义
+         统一收到本文件末尾的双栏样式一节，此处不再重复。 */
+      .settings-loading,
+      .settings-error {
+        text-align: center;
+        padding: 40px;
+        font-size: var(--font-size-body-sm);
+      }
+      .settings-loading {
+        color: var(--color-text-tertiary);
+      }
+      .settings-error {
+        color: var(--state-error);
+      }
 
-                <!-- 昨天 -->
-                <div class="history-time-group">昨天</div>
-                <div class="history-item" data-conv-id="4">
-                    <i data-lucide="message-circle" style="width:14px;height:14px;flex-shrink:0;opacity:0.5;"></i>
-                    <span class="history-item-text">毛泽东《实践论》的认识论思想</span>
-                </div>
-                <div class="history-item" data-conv-id="5">
-                    <i data-lucide="message-circle" style="width:14px;height:14px;flex-shrink:0;opacity:0.5;"></i>
-                    <span class="history-item-text">恩格斯自然辩证法概述</span>
-                </div>
+      /* 对话框中的提示文字（确认框） */
+      .inline-dialog-message {
+        font-size: var(--font-size-body-sm);
+        color: var(--color-text-secondary);
+        line-height: var(--line-height-relaxed);
+      }
 
-                <!-- 文件夹分组 -->
-                <div class="history-folder open">
-                    <i data-lucide="chevron-right" class="folder-arrow"></i>
-                    <i data-lucide="folder" class="folder-icon"></i>
-                    <span class="folder-name">马克思主义哲学</span>
-                    <span class="folder-count">3</span>
-                </div>
-                <div class="folder-children">
-                    <div class="history-item" data-conv-id="6">
-                        <i data-lucide="message-circle" style="width:14px;height:14px;flex-shrink:0;opacity:0.5;"></i>
-                        <span class="history-item-text">辩证法的三大规律</span>
-                    </div>
-                    <div class="history-item" data-conv-id="7">
-                        <i data-lucide="message-circle" style="width:14px;height:14px;flex-shrink:0;opacity:0.5;"></i>
-                        <span class="history-item-text">矛盾论中的主要矛盾与次要矛盾</span>
-                    </div>
-                </div>
-            </div>
+      /* 消息级的错误与停止提示 */
+      .msg-error {
+        color: var(--state-error);
+      }
+      .msg-stopped-hint {
+        color: var(--color-text-tertiary);
+        font-style: italic;
+      }
 
-            <!-- Sidebar Footer / Settings -->
-            <div class="chat-sidebar-footer">
-                <button class="sidebar-settings-btn" type="button" aria-label="设置">
-                    <i data-lucide="settings"></i>
-                    <span>设置</span>
-                </button>
-                <button class="sidebar-toggle" type="button" id="sidebarToggle" aria-label="收起侧边栏" title="收起侧边栏">
-                    <i data-lucide="panel-left-close"></i>
-                </button>
-            </div>
-        </aside>
-
-        <!-- ============================================
-             MAIN CHAT AREA
-             ============================================ -->
-        <div class="chat-main">
-
-            <!-- Top Bar -->
-            <div class="chat-topbar">
-                <div class="topbar-left">
-                    <!-- Mobile hamburger -->
-                    <button class="hamburger-btn" type="button" id="hamburgerBtn" aria-label="打开侧边栏">
-                        <i data-lucide="menu"></i>
-                    </button>
-                </div>
-                <div class="topbar-right"></div>
-            </div>
-
-            <!-- Chat Messages Area -->
-            <div class="chat-messages" id="chatMessages">
-
-                <!-- Vertical Timeline (sticky) -->
-                <div class="v-timeline visible" id="vTimeline">
-                    <div class="v-timeline-label">对话节点</div>
-                    <div class="v-timeline-item active">
-                        <div class="v-timeline-dot"></div>
-                        <span class="v-timeline-text">历史唯物主义与生产力发展</span>
-                    </div>
-                    <div class="v-timeline-item">
-                        <div class="v-timeline-dot"></div>
-                        <span class="v-timeline-text">马克思的国家学说</span>
-                    </div>
-                </div>
-
-                <!-- Conversation messages (static demo) -->
-                <div class="conversation-container" id="conversationContainer">
-                    <!-- User Message -->
-                    <div class="message-row user-message">
-                        <div class="msg-body">
-                            <div class="msg-text">
-                                <div class="msg-bubble">
-                                    <p>请解释历史唯物主义中生产力与生产关系的基本原理。</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Assistant Message -->
-                    <div class="message-row assistant-message">
-                        <div class="msg-body">
-                            <div class="msg-text">
-                                <div class="msg-bubble">
-                                    <!-- Thinking Process Panel (collapsed) -->
-                                    <div class="thinking-process visible">
-                                        <div class="thinking-process-header">
-                                            <i data-lucide="brain" class="thinking-process-icon" style="animation:none;"></i>
-                                            <span class="thinking-process-label">已深度思考</span>
-                                            <span class="thinking-process-duration">8.2s</span>
-                                            <i data-lucide="chevron-down" class="thinking-process-arrow"></i>
-                                        </div>
-                                        <div class="thinking-process-body">
-用户询问的是历史唯物主义的核心范畴——生产力与生产关系的辩证关系。需要从经典文本出发，结合作者的具体论述来展开说明。
-
-首先需要明确生产力与生产关系的定义及其相互作用机制。马克思在《政治经济学批判》序言中对此有经典表述。
-
-其次要说明这对范畴在整个历史唯物主义体系中的地位——它是理解社会形态更替的钥匙。
-
-最后需要用实例加以佐证，使抽象原理具象化。
-                                        </div>
-                                    </div>
-
-                                    <p><strong>历史唯物主义</strong>是马克思主义哲学的核心组成部分。历史唯物主义认为，生产力与生产关系的矛盾运动是社会发展的根本动力。</p>
-
-                                    <h3>一、生产力的定义</h3>
-                                    <p>生产力是人们改造自然、进行物质资料生产的能力，包括三个基本要素：</p>
-                                    <ul>
-                                        <li><strong>劳动者</strong>——具有一定生产经验和劳动技能的人</li>
-                                        <li><strong>劳动资料</strong>——主要是生产工具</li>
-                                        <li><strong>劳动对象</strong>——劳动加工的对象</li>
-                                    </ul>
-                                    <p>马克思指出："生产力中也包括科学"（《政治经济学批判》），科学技术是生产力发展的重要推动力量。</p>
-
-                                    <h3>二、生产关系的定义</h3>
-                                    <p>生产关系是人们在物质资料生产过程中结成的社会关系，主要包括：</p>
-                                    <ul>
-                                        <li>生产资料的所有制关系</li>
-                                        <li>人们在生产中的地位和相互关系</li>
-                                        <li>产品分配关系</li>
-                                    </ul>
-                                    <blockquote>
-                                        "人们在自己生活的社会生产中发生一定的、必然的、不依他们的意志为转移的关系，即同他们的物质生产力的一定发展阶段相适合的生产关系。"——马克思《〈政治经济学批判〉序言》
-                                    </blockquote>
-
-                                    <h3>三、生产力与生产关系的辩证关系</h3>
-                                    <p>二者的关系可以概括为：<strong>生产力决定生产关系，生产关系反作用于生产力</strong>。</p>
-                                    <ol>
-                                        <li><strong>生产力决定生产关系</strong>：生产力的性质和水平决定生产关系的性质和形式；生产力的发展变化决定生产关系的变革。</li>
-                                        <li><strong>生产关系反作用于生产力</strong>：当生产关系适应生产力发展要求时，它会促进生产力的发展；当生产关系不适应生产力发展要求时，它会阻碍生产力的发展。</li>
-                                    </ol>
-
-                                    <h3>四、结论</h3>
-                                    <p>生产力与生产关系的矛盾运动构成了人类社会发展的基本规律——<strong>生产关系一定要适合生产力状况的规律</strong>。这一规律是马克思主义政党制定路线、方针、政策的重要依据。</p>
-                                </div>
-
-                                <!-- Message Actions -->
-                                <div class="msg-actions">
-                                    <button class="msg-action-btn" type="button" aria-label="复制" title="复制">
-                                        <i data-lucide="copy"></i>
-                                    </button>
-                                    <button class="msg-action-btn" type="button" aria-label="重新生成" title="重新生成">
-                                        <i data-lucide="refresh-cw"></i>
-                                    </button>
-                                    <button class="msg-action-btn" type="button" aria-label="点赞" title="点赞">
-                                        <i data-lucide="thumbs-up"></i>
-                                    </button>
-                                    <button class="msg-action-btn" type="button" aria-label="点踩" title="点踩">
-                                        <i data-lucide="thumbs-down"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Divider -->
-                    <div class="message-row user-message">
-                        <div class="msg-body">
-                            <div class="msg-text">
-                                <div class="msg-bubble">
-                                    <p>马克思在《哥达纲领批判》中如何批判拉萨尔主义？请结合原文分析。</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Assistant Message with Sources -->
-                    <div class="message-row assistant-message">
-                        <div class="msg-body">
-                            <div class="msg-text">
-                                <div class="msg-bubble">
-                                    <div class="thinking-process visible open">
-                                        <div class="thinking-process-header">
-                                            <i data-lucide="brain" class="thinking-process-icon" style="animation:none;"></i>
-                                            <span class="thinking-process-label">已深度思考</span>
-                                            <span class="thinking-process-duration">12.5s</span>
-                                            <i data-lucide="chevron-down" class="thinking-process-arrow"></i>
-                                        </div>
-                                        <div class="thinking-process-body">
-《哥达纲领批判》是马克思1875年针对德国工人党（即后来的社会民主党）的哥达纲领所写的批判性著作。拉萨尔主义的核心主张包括：依靠国家帮助建立生产合作社来实现社会主义、铁的工资规律、对农民阶级的否定态度等。
-
-需要围绕以下几个关键批判点展开：
-1. 对"铁的工资规律"的批判 —— 马克思用剩余价值理论揭示工资的本质
-2. 对"国家帮助"的批判 —— 国家是阶级统治的工具
-3. 对农民问题的批判 —— 拉萨尔主义将农民视为"反动的一帮"
-4. 对"公平分配"的批判 —— 马克思提出共产主义两个阶段理论
-
-需要引用原文来支撑这些分析，同时展示马克思的论证逻辑。
-                                        </div>
-                                    </div>
-
-                                    <p>马克思在《哥达纲领批判》中对拉萨尔主义进行了系统而深刻的批判，主要集中在以下几个方面：</p>
-
-                                    <h3>一、批判"铁的工资规律"</h3>
-                                    <p>拉萨尔主义把工资规律看作"铁的规律"——工资的平均水平总是等同于维持工人及其家属生存所必需的最低费用。马克思指出：</p>
-                                    <blockquote>
-                                        "工资不是它表面上呈现的那种东西，不是劳动的价值或价格，而只是劳动力的价值或价格的掩蔽形式。"——《哥达纲领批判》
-                                    </blockquote>
-                                    <p>马克思用<strong>剩余价值理论</strong>取而代之：工人出卖的不是劳动而是劳动力，工资是劳动力价值的货币表现，其秘密在于剩余价值的创造和占有。</p>
-
-                                    <h3>二、批判"国家帮助建立生产合作社"</h3>
-                                    <p>拉萨尔认为可以通过资产阶级国家帮助建立生产合作社来实现社会主义。马克思对此尖锐批评：</p>
-                                    <blockquote>
-                                        "既不是什么'国家帮助'，也不是什么'国家援助'——而是<em>革命</em>！"——《马克思致白拉克的信》
-                                    </blockquote>
-                                    <p>马克思认为，现代国家实质上是资产阶级的阶级统治工具，寄希望于"国家帮助"是空想主义的表现。</p>
-
-                                    <h3>三、批判"反动的一帮"理论</h3>
-                                    <p>拉萨尔主义把农民、小资产阶级等一切非无产阶级都称为"反动的一帮"。马克思坚决反对这种宗派主义观点，强调工农联盟的重要性。</p>
-
-                                    <h3>四、共产主义两个阶段理论</h3>
-                                    <p>针对哥达纲领中"公平分配"的模糊提法，马克思首次明确提出了共产主义社会两个阶段的理论：</p>
-                                    <ol>
-                                        <li><strong>第一阶段（社会主义）</strong>——"按劳分配"，形式上平等而事实上不平等</li>
-                                        <li><strong>高级阶段</strong>——"各尽所能，按需分配"</li>
-                                    </ol>
-                                    <blockquote>
-                                        "在共产主义社会高级阶段上，在迫使人们奴隶般地服从分工的情形已经消失之后……只有在那个时候，才能完全超出资产阶级法权的狭隘眼界，社会才能在自己的旗帜上写上：各尽所能，按需分配！"
-                                    </blockquote>
-
-                                    <!-- Source Cards -->
-                                    <div class="sources-section">
-                                        <div class="sources-header expanded">
-                                            <span class="sources-header-label">3 个参考资料</span>
-                                            <i data-lucide="chevron-down"></i>
-                                        </div>
-                                        <div class="sources-list visible">
-                                            <div class="source-card">
-                                                <div class="source-card-header">
-                                                    <span class="source-title">《哥达纲领批判》</span>
-                                                    <span class="source-score">96%</span>
-                                                </div>
-                                                <div class="source-author">卡尔·马克思 · 1875年</div>
-                                                <div class="source-excerpt">工资不是它表面上呈现的那种东西，不是劳动的价值或价格，而只是劳动力的价值或价格的掩蔽形式。</div>
-                                            </div>
-                                            <div class="source-card">
-                                                <div class="source-card-header">
-                                                    <span class="source-title">《马克思致白拉克的信》</span>
-                                                    <span class="source-score">91%</span>
-                                                </div>
-                                                <div class="source-author">卡尔·马克思 · 1875年5月5日</div>
-                                                <div class="source-excerpt">既不是什么"国家帮助"，也不是什么"国家援助"——而是革命！</div>
-                                            </div>
-                                            <div class="source-card">
-                                                <div class="source-card-header">
-                                                    <span class="source-title">《资本论》第一卷</span>
-                                                    <span class="source-score">88%</span>
-                                                </div>
-                                                <div class="source-author">卡尔·马克思 · 1867年</div>
-                                                <div class="source-excerpt">劳动力的价值和劳动力在劳动过程中的价值增殖，是两个不同的量。</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Message Actions -->
-                                <div class="msg-actions">
-                                    <button class="msg-action-btn" type="button" aria-label="复制" title="复制">
-                                        <i data-lucide="copy"></i>
-                                    </button>
-                                    <button class="msg-action-btn" type="button" aria-label="重新生成" title="重新生成">
-                                        <i data-lucide="refresh-cw"></i>
-                                    </button>
-                                    <button class="msg-action-btn" type="button" aria-label="点赞" title="点赞">
-                                        <i data-lucide="thumbs-up"></i>
-                                    </button>
-                                    <button class="msg-action-btn" type="button" aria-label="点踩" title="点踩">
-                                        <i data-lucide="thumbs-down"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-
-            <!-- Bottom Input Area -->
-            <div class="chat-input-area">
-                <div class="chat-input-wrapper">
-                    <!-- Mode Switcher -->
-                    <div class="mode-switcher" id="modeSwitcher">
-                        <div class="mode-tab active" data-mode="general">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                            <span>通用问答</span>
-                        </div>
-                        <div class="mode-tab" data-mode="methodology">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a5 5 0 0 1 5 5c0 2.76-2.24 5-5 5s-5-2.24-5-5a5 5 0 0 1 5-5z"/><path d="M9 12v4a3 3 0 0 0 6 0v-4"/></svg>
-                            <span>马哲方法论</span>
-                        </div>
-                        <div class="mode-tab" data-mode="original">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-                            <span>原文查询</span>
-                        </div>
-                    </div>
-                    <div class="mode-description" id="modeDescription">基于马克思主义理论回答一般问题</div>
-                    <div class="chat-input-box">
-                        <textarea
-                            class="chat-textarea"
-                            id="chatTextarea"
-                            placeholder="输入你的问题..."
-                            rows="1"
-                        ></textarea>
-                        <div class="chat-input-toolbar">
-                            <!-- Feature Toggle Pills -->
-                            <div class="feature-toggles">
-                                <button class="feature-pill thinking active" type="button" id="thinkingToggle" title="关闭深度思考">
-                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
-                                    <span>深度思考</span>
-                                </button>
-                                <button class="feature-pill search" type="button" id="searchToggle" title="联网搜索">
-                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-                                    <span>联网搜索</span>
-                                </button>
-                            </div>
-                            <!-- Model selector (inside input box) -->
-                            <div class="model-selector-wrapper">
-                                <div class="model-selector" id="modelSelector" tabindex="0" role="button" aria-label="选择模型" aria-haspopup="listbox">
-                                    <span class="model-selector-name" id="modelSelectorName">DeepSeek R1</span>
-                                    <i data-lucide="chevron-down"></i>
-                                </div>
-                                <div class="model-dropdown" id="modelDropdown" role="listbox">
-                                    <div class="model-dropdown-item active">DeepSeek R1 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
-                                    <div class="model-dropdown-item">DeepSeek V3</div>
-                                    <div class="model-dropdown-item">GPT-4o</div>
-                                    <div class="model-dropdown-item">Claude 3.5 Sonnet</div>
-                                </div>
-                            </div>
-                            <div class="toolbar-right">
-                                <button class="send-btn" type="button" id="sendBtn" aria-label="发送">
-                                    <i data-lucide="arrow-up"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="input-hint">此为AI与文献综合回答，请谨慎辨别</div>
-                </div>
-            </div>
-
-        </div>
-    </div>
-
-    <!-- ============================================
-         Settings Panel (static demo)
-         ============================================ -->
-    <div class="settings-overlay" id="settingsOverlay">
-        <div class="settings-panel" id="settingsPanel">
-            <div class="settings-panel-header">
-                <h2>设置</h2>
-                <button class="settings-close-btn" type="button" id="settingsCloseBtn" aria-label="关闭设置">
-                    <i data-lucide="x"></i>
-                </button>
-            </div>
-            <div class="settings-panel-body" id="settingsPanelBody">
-                <div class="settings-section">
-                    <div class="settings-section-title">通用</div>
-                    <div class="settings-item">
-                        <span class="settings-item-label">主题模式</span>
-                        <div class="settings-item-control">
-                            <select class="settings-select">
-                                <option>跟随系统</option>
-                                <option selected>浅色模式</option>
-                                <option>深色模式</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="settings-item">
-                        <span class="settings-item-label">语言</span>
-                        <div class="settings-item-control">
-                            <select class="settings-select">
-                                <option selected>简体中文</option>
-                                <option>English</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                <div class="settings-section">
-                    <div class="settings-section-title">API 配置</div>
-                    <div class="settings-item">
-                        <span class="settings-item-label">API 地址</span>
-                        <div class="settings-item-control" style="flex:1;max-width:260px;">
-                            <input class="settings-input" type="text" value="http://localhost:8000" />
-                        </div>
-                    </div>
-                    <div class="settings-item">
-                        <span class="settings-item-label">API Key</span>
-                        <div class="settings-item-control" style="flex:1;max-width:260px;">
-                            <input class="settings-input" type="password" value="sk-demo-key" />
-                        </div>
-                    </div>
-                </div>
-                <div class="settings-section">
-                    <div class="settings-section-title">关于</div>
-                    <div class="settings-about">
-                        <div class="settings-about-name">MarxLen - 马列通</div>
-                        <div class="settings-about-desc">马克思主义经典著作智能问答系统</div>
-                        <div class="settings-about-version">v1.0.0 纯 UI 演示版</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // ── 仅保留 UI 交互相关的最小脚本 ──
-
-        // 初始化 Lucide 图标
-        lucide.createIcons();
-
-        // ── 侧边栏折叠/展开 (桌面端) ──
-        var sidebarToggle = document.getElementById('sidebarToggle');
-        var sidebar = document.getElementById('chatSidebar');
-        var sidebarCollapsed = false;
-
-        if (sidebarToggle) {
-            sidebarToggle.addEventListener('click', function() {
-                sidebarCollapsed = !sidebarCollapsed;
-                sidebar.classList.toggle('collapsed', sidebarCollapsed);
-                sidebarToggle.classList.toggle('collapsed', sidebarCollapsed);
-                sidebarToggle.title = sidebarCollapsed ? '展开侧边栏' : '收起侧边栏';
-                sidebarToggle.setAttribute('aria-label', sidebarCollapsed ? '展开侧边栏' : '收起侧边栏');
-                if (sidebarCollapsed) {
-                    sidebarToggle.innerHTML = '<i data-lucide="panel-left-open"></i>';
-                } else {
-                    sidebarToggle.innerHTML = '<i data-lucide="panel-left-close"></i>';
-                }
-                lucide.createIcons();
-            });
+      /* 尊重系统的"减少动态效果"偏好 */
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+          scroll-behavior: auto !important;
         }
+      }
 
-        // ── 侧边栏移动端打开/关闭 ──
-        var hamburger = document.getElementById('hamburgerBtn');
-        var overlay = document.getElementById('sidebarOverlay');
+      /* ============================================
+         设置面板 —— 双栏主从布局
+         左栏分类导航 + 右栏当前分类内容。
+         写在文件末尾，覆盖前面的旧规则。
+         ============================================ */
 
-        if (hamburger) {
-            hamburger.addEventListener('click', function() {
-                sidebar.classList.add('open');
-                overlay.classList.add('active', 'visible');
-            });
+      .settings-panel {
+        display: grid;
+        grid-template-columns: 200px 1fr;
+        width: min(900px, 92vw);
+        max-width: none;
+        height: min(640px, 88vh);
+        max-height: none;
+        padding: 0;
+        overflow: hidden;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-float);
+      }
+
+      /* ── 左栏 ── */
+
+      .settings-sidebar {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        background: var(--color-bg-secondary);
+        border-right: 1px solid var(--color-border);
+      }
+
+      .settings-sidebar-header {
+        padding: var(--space-5) var(--space-5) var(--space-4);
+        border-bottom: 1px solid var(--color-border);
+      }
+      .settings-sidebar-header h2 {
+        font-family: var(--font-family-title);
+        font-size: var(--font-size-h3);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
+        margin: 0;
+      }
+
+      .settings-nav {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding: var(--space-3) var(--space-2);
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .settings-nav-item {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        width: 100%;
+        padding: 9px var(--space-3);
+        font-family: var(--font-family-body);
+        font-size: var(--font-size-body-sm);
+        color: var(--color-text-secondary);
+        text-align: left;
+        background: transparent;
+        border: none;
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: var(--transition-fast);
+      }
+      .settings-nav-item:hover {
+        background: var(--color-surface);
+        color: var(--color-text-primary);
+      }
+      /* 选中项用主色底 + 左侧色条强调 */
+      .settings-nav-item.active {
+        background: var(--color-primary-100);
+        color: var(--color-primary);
+        font-weight: var(--font-weight-medium);
+      }
+      .settings-nav-item svg {
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+      }
+
+      /* ── 右栏 ── */
+
+      .settings-content {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        min-height: 0;
+        background: var(--color-surface);
+      }
+
+      .settings-content-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: var(--space-4);
+        padding: var(--space-5) var(--space-6) var(--space-4);
+        border-bottom: 1px solid var(--color-border);
+      }
+
+      .settings-content-heading {
+        min-width: 0;
+      }
+      .settings-content-title {
+        font-family: var(--font-family-title);
+        font-size: var(--font-size-h4);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
+        margin: 0;
+      }
+      .settings-content-desc {
+        font-size: var(--font-size-caption);
+        color: var(--color-text-tertiary);
+        line-height: var(--line-height-normal);
+        margin: 4px 0 0 0;
+      }
+
+      .settings-content-body {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding: var(--space-5) var(--space-6) var(--space-6);
+      }
+
+      /* ── 设置项 ── */
+
+      .settings-group {
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* 左边说明、右边控件，中间自动留白 */
+      .settings-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-5);
+        padding: var(--space-4) 0;
+        border-bottom: 1px solid var(--color-border-light);
+        border-radius: 0;
+        transition: background-color var(--transition-fast);
+      }
+      .settings-item:last-child {
+        border-bottom: none;
+      }
+
+      .settings-item-info {
+        min-width: 0;
+        flex: 1;
+      }
+
+      .settings-item-head {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+      }
+
+      .settings-item-label {
+        font-size: var(--font-size-body-sm);
+        font-weight: var(--font-weight-medium);
+        color: var(--color-text-primary);
+        cursor: pointer;
+        line-height: var(--line-height-tight);
+      }
+
+      .settings-item-desc {
+        font-size: var(--font-size-caption);
+        color: var(--color-text-tertiary);
+        line-height: var(--line-height-normal);
+        margin: 4px 0 0 0;
+      }
+
+      .settings-item-control {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        flex-shrink: 0;
+      }
+
+      .settings-item-unit {
+        font-size: var(--font-size-caption);
+        color: var(--color-text-tertiary);
+        white-space: nowrap;
+      }
+
+      .settings-input,
+      .settings-select,
+      .settings-textarea {
+        width: 200px;
+        max-width: none;
+        padding: 7px 10px;
+        font-family: var(--font-family-body);
+        font-size: var(--font-size-body-sm);
+        color: var(--color-text-primary);
+        /* 用 background-color 而非 background 简写：后者会把
+           .settings-select 的下拉箭头 background-image 一起清掉，
+           导致 select 和普通输入框在视觉上无法区分。 */
+        background-color: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        transition: border-color var(--transition-fast);
+      }
+      .settings-input:focus,
+      .settings-select:focus,
+      .settings-textarea:focus {
+        outline: none;
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 3px var(--color-primary-100);
+      }
+      /* 原生箭头被 appearance:none 去掉了，用内联 SVG 补一个，
+         右侧 padding 留出 28px 避免文字压到箭头上。 */
+      .settings-select {
+        padding-right: 28px;
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 9px center;
+      }
+      .settings-input-number {
+        width: 100px;
+        text-align: right;
+      }
+      .settings-textarea {
+        width: 280px;
+        resize: vertical;
+        line-height: var(--line-height-normal);
+      }
+
+      /* ── 开关（替代原生 checkbox）── */
+
+      .settings-switch {
+        position: relative;
+        display: inline-flex;
+        flex-shrink: 0;
+        cursor: pointer;
+      }
+      .settings-switch input {
+        position: absolute;
+        opacity: 0;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        cursor: pointer;
+      }
+      .settings-switch-track {
+        display: block;
+        width: 40px;
+        height: 22px;
+        background: var(--color-border-dark);
+        border-radius: var(--radius-full);
+        transition: background-color var(--transition-normal);
+      }
+      /* 滑块用伪元素，靠 transform 平移 */
+      .settings-switch-track::after {
+        content: '';
+        display: block;
+        width: 18px;
+        height: 18px;
+        margin: 2px;
+        background: #FFFFFF;
+        border-radius: var(--radius-full);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        transition: transform var(--transition-normal);
+      }
+      .settings-switch input:checked + .settings-switch-track {
+        background: var(--color-primary);
+      }
+      .settings-switch input:checked + .settings-switch-track::after {
+        transform: translateX(18px);
+      }
+      .settings-switch input:focus-visible + .settings-switch-track {
+        box-shadow: 0 0 0 3px var(--color-primary-100);
+      }
+
+      /* ── 徽章与保存反馈 ── */
+
+      .settings-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 1px 6px;
+        font-size: 10px;
+        font-weight: var(--font-weight-medium);
+        border-radius: var(--radius-full);
+        white-space: nowrap;
+      }
+      .settings-badge-modified {
+        color: var(--color-primary);
+        background: var(--color-primary-100);
+      }
+      .settings-badge-restart {
+        color: var(--state-warning);
+        background: rgba(180, 83, 9, 0.12);
+      }
+
+      .settings-item.saved {
+        background: rgba(45, 106, 79, 0.08);
+      }
+      .settings-item.save-failed {
+        background: rgba(185, 28, 28, 0.08);
+      }
+
+      /* ── 高级选项折叠区 ── */
+
+      .settings-advanced {
+        margin-top: var(--space-5);
+        border-top: 1px solid var(--color-border);
+        padding-top: var(--space-2);
+      }
+      .settings-advanced-summary {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-2) 0;
+        font-size: var(--font-size-body-sm);
+        color: var(--color-text-secondary);
+        cursor: pointer;
+        user-select: none;
+        list-style: none;
+      }
+      /* 去掉浏览器默认的三角标记，用 Lucide 图标代替 */
+      .settings-advanced-summary::-webkit-details-marker {
+        display: none;
+      }
+      .settings-advanced-summary:hover {
+        color: var(--color-text-primary);
+      }
+      .settings-advanced-summary svg {
+        width: 14px;
+        height: 14px;
+        transition: transform var(--transition-fast);
+      }
+      .settings-advanced[open] .settings-advanced-summary svg {
+        transform: rotate(90deg);
+      }
+
+      /* ── 存储分类 ── */
+
+      .settings-stats-card {
+        padding: var(--space-4);
+        background: var(--color-bg-secondary);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+      }
+      .settings-stat-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 6px 0;
+        font-size: var(--font-size-body-sm);
+      }
+      .settings-stat-row + .settings-stat-row {
+        border-top: 1px solid var(--color-border-light);
+      }
+      .settings-stat-label {
+        color: var(--color-text-secondary);
+      }
+      .settings-stat-value {
+        font-family: var(--font-family-mono);
+        font-weight: var(--font-weight-medium);
+        color: var(--color-text-primary);
+      }
+
+      .settings-actions-row {
+        display: flex;
+        gap: var(--space-3);
+        margin-top: var(--space-4);
+      }
+      .settings-actions-row .settings-action-btn {
+        flex: 1;
+      }
+      .settings-action-btn {
+        padding: 8px 14px;
+        font-family: var(--font-family-body);
+        font-size: var(--font-size-body-sm);
+        color: var(--color-text-secondary);
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: var(--transition-fast);
+      }
+      .settings-action-btn:hover:not(:disabled) {
+        border-color: var(--color-primary);
+        color: var(--color-primary);
+      }
+      .settings-action-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      /* ── 关于分类 ── */
+
+      .settings-about {
+        text-align: center;
+        padding: var(--space-8) var(--space-4);
+      }
+      .settings-about-name {
+        font-family: var(--font-family-title);
+        font-size: var(--font-size-h3);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
+      }
+      .settings-about-desc {
+        font-size: var(--font-size-body-sm);
+        color: var(--color-text-secondary);
+        margin-top: var(--space-2);
+      }
+      .settings-about-version {
+        font-family: var(--font-family-mono);
+        font-size: var(--font-size-caption);
+        color: var(--color-text-tertiary);
+        margin-top: var(--space-3);
+      }
+
+      /* ── 移动端：改为上下结构，导航横向滚动 ── */
+
+      @media (max-width: 768px) {
+        .settings-panel {
+          grid-template-columns: 1fr;
+          grid-template-rows: auto 1fr;
+          width: 100vw;
+          height: 100vh;
+          border-radius: 0;
         }
-
-        if (overlay) {
-            overlay.addEventListener('click', function() {
-                sidebar.classList.remove('open');
-                overlay.classList.remove('visible');
-                setTimeout(function() { overlay.classList.remove('active'); }, 250);
-            });
+        .settings-sidebar {
+          border-right: none;
+          border-bottom: 1px solid var(--color-border);
         }
-
-        // ── 设置面板打开/关闭 ──
-        var settingsOverlay = document.getElementById('settingsOverlay');
-        var settingsCloseBtn = document.getElementById('settingsCloseBtn');
-        var sidebarSettingsBtn = document.querySelector('.sidebar-settings-btn');
-
-        function openSettings() {
-            settingsOverlay.classList.add('open');
+        .settings-sidebar-header {
+          padding: var(--space-4) var(--space-4) var(--space-3);
+          border-bottom: none;
         }
-
-        function closeSettingsPanel() {
-            settingsOverlay.classList.remove('open');
+        .settings-nav {
+          flex-direction: row;
+          overflow-x: auto;
+          overflow-y: hidden;
+          padding: 0 var(--space-3) var(--space-3);
+          gap: var(--space-2);
         }
-
-        if (sidebarSettingsBtn) {
-            sidebarSettingsBtn.addEventListener('click', function() {
-                openSettings();
-                if (window.innerWidth <= 768) {
-                    sidebar.classList.remove('open');
-                    overlay.classList.remove('visible');
-                    setTimeout(function() { overlay.classList.remove('active'); }, 250);
-                }
-            });
+        .settings-nav-item {
+          width: auto;
+          white-space: nowrap;
+          flex-shrink: 0;
         }
-
-        if (settingsCloseBtn) {
-            settingsCloseBtn.addEventListener('click', closeSettingsPanel);
+        .settings-content-header,
+        .settings-content-body {
+          padding-left: var(--space-4);
+          padding-right: var(--space-4);
         }
-
-        if (settingsOverlay) {
-            settingsOverlay.addEventListener('click', function(e) {
-                if (e.target === settingsOverlay) closeSettingsPanel();
-            });
+        /* 窄屏下控件换到说明下方，避免被挤压 */
+        .settings-item {
+          flex-direction: column;
+          align-items: stretch;
+          gap: var(--space-3);
         }
-
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') { closeSettingsPanel(); }
-        });
-
-        // ── 思考过程折叠/展开 ──
-        document.querySelectorAll('.thinking-process-header').forEach(function(header) {
-            header.addEventListener('click', function() {
-                header.parentElement.classList.toggle('open');
-            });
-        });
-
-        // ── 参考资料折叠/展开 ──
-        document.querySelectorAll('.sources-header').forEach(function(header) {
-            header.addEventListener('click', function() {
-                header.classList.toggle('expanded');
-                var list = header.nextElementSibling;
-                if (list) list.classList.toggle('visible');
-            });
-        });
-
-        // ── 模型选择器下拉 ──
-        var modelSelector = document.getElementById('modelSelector');
-        var modelDropdown = document.getElementById('modelDropdown');
-
-        if (modelSelector) {
-            modelSelector.addEventListener('click', function(e) {
-                e.stopPropagation();
-                modelDropdown.classList.toggle('open');
-            });
-
-            modelDropdown.querySelectorAll('.model-dropdown-item').forEach(function(item) {
-                item.addEventListener('click', function() {
-                    var name = this.textContent.trim();
-                    document.getElementById('modelSelectorName').textContent = name;
-                    modelDropdown.querySelectorAll('.model-dropdown-item').forEach(function(i) {
-                        i.classList.remove('active');
-                        i.innerHTML = i.textContent.trim();
-                    });
-                    this.classList.add('active');
-                    this.innerHTML = this.textContent.trim() + ' <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>';
-                    modelDropdown.classList.remove('open');
-                });
-            });
-
-            document.addEventListener('click', function() {
-                if (modelDropdown) modelDropdown.classList.remove('open');
-            });
+        .settings-input,
+        .settings-select,
+        .settings-textarea {
+          width: 100%;
         }
+        .settings-input-number {
+          width: 100%;
+          text-align: left;
+        }
+      }
 
-        // ── 模式切换 ──
-        document.querySelectorAll('.mode-tab').forEach(function(tab) {
-            tab.addEventListener('click', function() {
-                document.querySelectorAll('.mode-tab').forEach(function(t) { t.classList.remove('active'); });
-                this.classList.add('active');
-                var mode = this.getAttribute('data-mode');
-                var descs = {
-                    'general': '基于马克思主义理论回答一般问题',
-                    'methodology': '运用马克思主义方法论分析问题',
-                    'original': '直接从经典文献中查找原文'
-                };
-                document.getElementById('modeDescription').textContent = descs[mode] || '';
-            });
-        });
+      /* ============================================
+         原文阅读器
+         ============================================ */
 
-        // ── 功能开关 ──
-        document.querySelectorAll('.feature-pill').forEach(function(pill) {
-            pill.addEventListener('click', function() {
-                this.classList.toggle('active');
-                if (this.id === 'thinkingToggle') {
-                    this.title = this.classList.contains('active') ? '关闭深度思考' : '开启深度思考';
-                }
-            });
-        });
+      /* 阅读器是"原文查询"模式的主视图，内嵌在 chat-main 里取代消息区。
+         注意输入区不隐藏：划词能把原文送进输入框，模式条也要留着，
+         用户随时可以切回另外两个模式提问。
+         三栏 = 书目录 | 书正文 | 检索窗口 */
+      .reader-view {
+        display: none;
+        grid-template-columns: 240px minmax(0, 1fr) 300px;
+        flex: 1;
+        min-height: 0;
+        background-color: var(--color-surface);
+      }
 
-        // ── 历史记录点击 ──
-        document.querySelectorAll('.history-item').forEach(function(item) {
-            item.addEventListener('click', function() {
-                document.querySelectorAll('.history-item').forEach(function(i) { i.classList.remove('active'); });
-                this.classList.add('active');
-                if (window.innerWidth <= 768) {
-                    sidebar.classList.remove('open');
-                    overlay.classList.remove('visible');
-                    setTimeout(function() { overlay.classList.remove('active'); }, 250);
-                }
-            });
-        });
+      /* 切到原文模式：只藏消息区，输入区留着 */
+      body.mode-original .chat-messages {
+        display: none;
+      }
+      body.mode-original .reader-view {
+        display: grid;
+      }
 
-        // ── 文件夹折叠/展开 ──
-        document.querySelectorAll('.history-folder').forEach(function(folder) {
-            folder.addEventListener('click', function() {
-                this.classList.toggle('open');
-            });
-        });
+      /* 两侧栏可折叠：窄屏或用户主动收起时把宽度归零，
+         用 grid-template-columns 而不是 display:none，
+         这样折叠是布局层面的事，栏内滚动位置不会丢 */
+      .reader-view.hide-toc {
+        grid-template-columns: 0 minmax(0, 1fr) 300px;
+      }
+      .reader-view.hide-search {
+        grid-template-columns: 240px minmax(0, 1fr) 0;
+      }
+      .reader-view.hide-toc.hide-search {
+        grid-template-columns: 0 minmax(0, 1fr) 0;
+      }
+      .reader-view.hide-toc .reader-sidebar,
+      .reader-view.hide-search .reader-search-pane {
+        overflow: hidden;
+        border: none;
+      }
 
-        console.log('Demo UI loaded - this is a static UI demonstration.');
-    </script>
+      /* ── 左栏：书目与目录 ── */
 
-</body>
-</html>
+      .reader-sidebar {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        background: var(--color-bg-secondary);
+        border-right: 1px solid var(--color-border);
+      }
+      .reader-sidebar-header {
+        padding: var(--space-4);
+        border-bottom: 1px solid var(--color-border);
+      }
+      .reader-back-btn {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        width: 100%;
+        padding: 8px 12px;
+        font-family: var(--font-family-body);
+        font-size: var(--font-size-body-sm);
+        color: var(--color-text-secondary);
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: var(--transition-fast);
+      }
+      .reader-back-btn:hover {
+        color: var(--color-primary);
+        border-color: var(--color-primary);
+      }
+      .reader-back-btn svg {
+        width: 15px;
+        height: 15px;
+      }
+
+      /* 书目与目录共用左栏：读某本书时隐藏书目、显示目录 */
+      .reader-book-list,
+      .reader-toc {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding: var(--space-2);
+      }
+      .reader-toc {
+        display: none;
+      }
+      .reader-view.reading .reader-book-list {
+        display: none;
+      }
+      .reader-view.reading .reader-toc {
+        display: block;
+      }
+
+      .reader-book-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-2);
+        padding: 8px 10px;
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: background-color var(--transition-fast);
+      }
+      .reader-book-item:hover,
+      .reader-book-item:focus-visible {
+        background: var(--color-primary-50);
+        outline: none;
+      }
+      .reader-book-name {
+        flex: 1;
+        min-width: 0;
+        font-size: var(--font-size-body-sm);
+        color: var(--color-text-primary);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .reader-book-size {
+        flex-shrink: 0;
+        font-family: var(--font-family-mono);
+        font-size: 10px;
+        color: var(--color-text-tertiary);
+      }
+
+      .reader-toc-item {
+        padding: 6px 10px;
+        font-size: var(--font-size-body-sm);
+        color: var(--color-text-secondary);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        transition: background-color var(--transition-fast);
+      }
+      .reader-toc-item:hover,
+      .reader-toc-item:focus-visible {
+        background: var(--color-primary-50);
+        color: var(--color-primary);
+        outline: none;
+      }
+      /* 标题层级用缩进表达，h1 加粗以便扫读 */
+      .reader-toc-item.level-1 {
+        font-weight: var(--font-weight-medium);
+        color: var(--color-text-primary);
+      }
+      .reader-toc-item.level-2 { padding-left: 22px; }
+      .reader-toc-item.level-3 { padding-left: 34px; }
+      .reader-toc-item.level-4 { padding-left: 46px; }
+
+      /* ── 右栏：正文 ── */
+
+      .reader-main {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        min-width: 0;
+      }
+      .reader-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-4);
+        padding: var(--space-4) var(--space-5);
+        border-bottom: 1px solid var(--color-border);
+      }
+      .reader-title {
+        /* 书名居中：两侧各有一个折叠按钮，flex:1 让标题吃掉中间全部空间 */
+        flex: 1;
+        min-width: 0;
+        text-align: center;
+        font-family: var(--font-family-title);
+        font-size: var(--font-size-h4);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      /* 两侧栏的折叠开关 */
+      .reader-pane-toggle {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        color: var(--color-text-tertiary);
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: var(--transition-fast);
+      }
+      .reader-pane-toggle:hover {
+        color: var(--color-primary);
+        background: var(--color-bg-secondary);
+      }
+      .reader-pane-toggle svg {
+        width: 17px;
+        height: 17px;
+      }
+      /* 书目态下正文区的引导空态 */
+      .reader-empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: var(--space-3);
+        height: 100%;
+        min-height: 320px;
+        color: var(--color-text-tertiary);
+        text-align: center;
+      }
+      .reader-empty svg {
+        width: 40px;
+        height: 40px;
+        opacity: 0.45;
+      }
+      .reader-empty-title {
+        font-family: var(--font-family-title);
+        font-size: var(--font-size-h4);
+        color: var(--color-text-secondary);
+      }
+      .reader-empty-desc {
+        font-size: var(--font-size-body-sm);
+        max-width: 30em;
+        line-height: var(--line-height-relaxed);
+      }
+
+      /* ── 左栏顶部：书目/章节筛选框 ── */
+
+      .reader-filter {
+        width: 100%;
+        margin-top: var(--space-2);
+        padding: 7px 10px;
+        font-family: var(--font-family-body);
+        font-size: var(--font-size-body-sm);
+        color: var(--color-text-primary);
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        transition: var(--transition-fast);
+      }
+      .reader-filter:focus {
+        outline: none;
+        border-color: var(--color-primary);
+      }
+      .reader-filter::placeholder {
+        color: var(--color-text-tertiary);
+      }
+
+      /* ── 右栏：检索窗口 ── */
+
+      .reader-search-pane {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        background: var(--color-bg-secondary);
+        border-left: 1px solid var(--color-border);
+      }
+      .reader-search-header {
+        padding: var(--space-4);
+        border-bottom: 1px solid var(--color-border);
+      }
+      .reader-search-box {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 10px;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        transition: var(--transition-fast);
+      }
+      .reader-search-box:focus-within {
+        border-color: var(--color-primary);
+      }
+      .reader-search-box svg {
+        flex-shrink: 0;
+        width: 15px;
+        height: 15px;
+        color: var(--color-text-tertiary);
+      }
+      .reader-search-input {
+        flex: 1;
+        min-width: 0;
+        font-family: var(--font-family-body);
+        font-size: var(--font-size-body-sm);
+        color: var(--color-text-primary);
+        background: transparent;
+        border: none;
+      }
+      .reader-search-input:focus {
+        outline: none;
+      }
+      .reader-search-input::placeholder {
+        color: var(--color-text-tertiary);
+      }
+
+      /* 检索范围：当前书 / 全部文献 */
+      .reader-scope {
+        display: flex;
+        gap: 4px;
+        margin-top: var(--space-3);
+        padding: 3px;
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+      }
+      .reader-scope-btn {
+        flex: 1;
+        padding: 5px 8px;
+        font-family: var(--font-family-body);
+        font-size: var(--font-size-caption);
+        color: var(--color-text-secondary);
+        background: transparent;
+        border: none;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        transition: var(--transition-fast);
+      }
+      .reader-scope-btn:hover {
+        color: var(--color-text-primary);
+      }
+      .reader-scope-btn.active {
+        color: #fff;
+        background: var(--color-primary);
+      }
+
+      /* 检索窗口的提示行：显示 LLM 抽出的关键词或错误 */
+      .reader-search-meta:empty {
+        display: none;
+      }
+      .reader-search-meta {
+        margin-top: var(--space-3);
+        font-size: var(--font-size-caption);
+        line-height: var(--line-height-relaxed);
+        color: var(--color-text-tertiary);
+      }
+      .reader-search-meta.error {
+        color: var(--color-error, #c0392b);
+      }
+
+      .reader-search-results {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding: var(--space-2);
+      }
+      .reader-result-item {
+        padding: var(--space-3);
+        margin-bottom: var(--space-2);
+        background: var(--color-surface);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: var(--transition-fast);
+      }
+      .reader-result-item:hover {
+        border-color: var(--color-primary);
+      }
+      .reader-result-title {
+        font-size: var(--font-size-caption);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-primary);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .reader-result-excerpt {
+        margin-top: 5px;
+        font-size: var(--font-size-caption);
+        line-height: var(--line-height-relaxed);
+        color: var(--color-text-secondary);
+        /* 摘要限 3 行：结果列表要能一屏看到多条 */
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      /* ── 划词浮出按钮 ── */
+
+      /* 跟随选区定位，所以必须 fixed，由 JS 写入 left/top */
+      .reader-selection-tip {
+        position: fixed;
+        z-index: 60;
+      }
+      .reader-selection-tip[hidden] {
+        display: none;
+      }
+      .reader-selection-btn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 12px;
+        font-family: var(--font-family-body);
+        font-size: var(--font-size-caption);
+        color: #fff;
+        background: var(--color-primary);
+        border: none;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-md);
+        cursor: pointer;
+      }
+      .reader-selection-btn svg {
+        width: 14px;
+        height: 14px;
+      }
+
+      /* 状态栏平时不占位，有内容时才撑开 */
+      .reader-status:empty {
+        display: none;
+      }
+      .reader-status {
+        padding: var(--space-2) var(--space-5);
+        font-size: var(--font-size-caption);
+        color: var(--color-text-secondary);
+        background: var(--color-bg-secondary);
+        border-bottom: 1px solid var(--color-border-light);
+      }
+      .reader-status.warn {
+        color: var(--state-warning);
+        background: rgba(180, 83, 9, 0.08);
+      }
+      .reader-status.error {
+        color: var(--state-error);
+        background: rgba(185, 28, 28, 0.08);
+      }
+
+      .reader-content {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding: var(--space-6) var(--space-8);
+        /* 正文用衬线体，长时间阅读更舒适 */
+        font-family: var(--font-family-title);
+        font-size: 1rem;
+        line-height: var(--line-height-relaxed);
+        color: var(--color-text-primary);
+      }
+      .reader-para {
+        margin-bottom: var(--space-4);
+        text-align: justify;
+        /* OCR 正文里有超长无空格串，不断行会撑破布局 */
+        overflow-wrap: break-word;
+        white-space: pre-wrap;
+      }
+      .reader-heading {
+        margin: var(--space-6) 0 var(--space-3);
+        font-size: var(--font-size-h4);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-primary);
+      }
+      .reader-heading:first-child {
+        margin-top: 0;
+      }
+      .reader-end {
+        padding: var(--space-8) 0 var(--space-4);
+        text-align: center;
+        font-size: var(--font-size-caption);
+        color: var(--color-text-tertiary);
+      }
+
+      /* 跳转命中的段落：高亮几秒后自行淡出 */
+      .reader-para.reader-hit,
+      .reader-heading.reader-hit {
+        background: var(--color-primary-100);
+        box-shadow: inset 3px 0 0 var(--color-primary);
+        padding-left: var(--space-3);
+        border-radius: var(--radius-sm);
+        transition: background-color 0.6s ease, box-shadow 0.6s ease;
+      }
+
+      /* ── 来源卡片的跳转提示 ── */
+
+      /* 常显而不是 hover 才出现：它是"这张卡片能跳原文"的唯一线索，
+         藏起来等于没有。做成带底色的小徽标，比一行灰字醒目 */
+      .source-jump-hint {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        margin-top: var(--space-2);
+        padding: 3px 8px;
+        font-size: var(--font-size-caption);
+        font-weight: var(--font-weight-medium);
+        line-height: 1.4;
+        color: var(--color-primary);
+        background: var(--color-bg-secondary);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-sm);
+        opacity: 0.85;
+        transition: var(--transition-fast);
+      }
+      .source-jump-hint svg {
+        width: 13px;
+        height: 13px;
+      }
+      .source-card.jumpable:hover .source-jump-hint {
+        opacity: 1;
+        color: #fff;
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+      }
+
+      /* ── 窄屏：逐级砍掉侧栏 ── */
+
+      /* 1280px 以下三栏会把正文挤到 40 字/行以下，先收窄两侧 */
+      @media (max-width: 1280px) {
+        .reader-view {
+          grid-template-columns: 210px minmax(0, 1fr) 260px;
+        }
+        .reader-view.hide-toc {
+          grid-template-columns: 0 minmax(0, 1fr) 260px;
+        }
+        .reader-view.hide-search {
+          grid-template-columns: 210px minmax(0, 1fr) 0;
+        }
+      }
+
+      /* 1024px 以下正文优先：检索窗口默认收起，需要时点开
+         （JS 里同步了折叠状态，用户手动展开仍然有效） */
+      @media (max-width: 1024px) {
+        .reader-view {
+          grid-template-columns: 200px minmax(0, 1fr) 0;
+        }
+        .reader-view .reader-search-pane {
+          overflow: hidden;
+        }
+        .reader-view.show-search {
+          grid-template-columns: 0 minmax(0, 1fr) 280px;
+        }
+        .reader-view.show-search .reader-search-pane {
+          overflow: visible;
+        }
+      }
+
+      @media (max-width: 768px) {
+        /* 窄屏放不下并排，左栏压成顶部横向条 */
+        .reader-view,
+        .reader-view.hide-toc,
+        .reader-view.hide-search {
+          grid-template-columns: 1fr;
+          grid-template-rows: auto minmax(0, 1fr);
+        }
+        .reader-sidebar {
+          border-right: none;
+          border-bottom: 1px solid var(--color-border);
+          max-height: 30vh;
+        }
+        /* 移动端检索窗口改为盖在正文上，否则挤不出位置 */
+        .reader-search-pane {
+          display: none;
+        }
+        .reader-view.show-search .reader-search-pane {
+          display: flex;
+          position: absolute;
+          inset: 0;
+          z-index: 20;
+          border-left: none;
+        }
+        .reader-main {
+          position: relative;
+        }
+        .reader-content {
+          padding: var(--space-4) var(--space-4);
+        }
+      }
+

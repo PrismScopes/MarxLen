@@ -3,11 +3,11 @@
 支持多个搜索引擎后端（DuckDuckGo / 预留其他）
 """
 import logging
-from typing import List, Dict
+from typing import List, Dict, Optional
+
+from .config_store import get_config
 
 logger = logging.getLogger(__name__)
-
-MAX_RESULTS = 5
 
 # 尝试导入搜索引擎
 _web_search_available = False
@@ -25,11 +25,14 @@ except ImportError:
         logger.warning("联网搜索: 未安装搜索引擎库 (pip install ddgs)")
 
 
-def web_search(query: str, max_results: int = MAX_RESULTS) -> List[Dict]:
-    """执行联网搜索"""
+def web_search(query: str, max_results: Optional[int] = None) -> List[Dict]:
+    """执行联网搜索。max_results 不传则取设置项 web_search_results"""
     if not _web_search_available:
         logger.warning("联网搜索: 无可用搜索引擎")
         return []
+
+    if max_results is None:
+        max_results = int(get_config().get("web_search_results"))
 
     try:
         with DDGS() as ddgs:
@@ -52,6 +55,7 @@ def format_search_results(results: List[Dict]) -> str:
     """将搜索结果格式化为文本"""
     if not results:
         return ""
+    excerpt_len = int(get_config().get("web_search_excerpt"))
     lines = ["【联网搜索结果】："]
     for i, r in enumerate(results):
         title = r.get("title", "")
@@ -59,7 +63,7 @@ def format_search_results(results: List[Dict]) -> str:
         href = r.get("href", "")
         lines.append(f"  [网络 {i+1}] {title}")
         if body:
-            lines.append(f"    摘要: {body[:200]}")
+            lines.append(f"    摘要: {body[:excerpt_len]}")
         if href:
             lines.append(f"    链接: {href}")
     return "\n".join(lines)

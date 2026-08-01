@@ -17,22 +17,24 @@ import logging
 import threading
 from typing import Optional, List, Dict
 
+from .config_store import get_config
+
 logger = logging.getLogger(__name__)
 
 RAG_DIR = os.path.dirname(os.path.abspath(__file__))
 CACHE_DIR = RAG_DIR + "/"
 EMBED_CACHE_PATH = os.path.join(CACHE_DIR, "cache_embeddings.db")
 ANSWER_CACHE_PATH = os.path.join(CACHE_DIR, "cache_answers.db")
-MAX_EMBED_ENTRIES = 2000
-MAX_ANSWER_ENTRIES = 500
 
 
 class EmbeddingCache:
     """嵌入向量缓存：query -> vector"""
 
-    def __init__(self, db_path: str = EMBED_CACHE_PATH, max_entries: int = MAX_EMBED_ENTRIES):
+    def __init__(self, db_path: str = EMBED_CACHE_PATH, max_entries: Optional[int] = None):
         self.db_path = db_path
-        self.max_entries = max_entries
+        # 不传则取设置项 max_embed_entries
+        self.max_entries = int(max_entries if max_entries is not None
+                               else get_config().get("max_embed_entries"))
         self._lock = threading.Lock()
         self._conn: Optional[sqlite3.Connection] = None
         self._init_db()
@@ -111,11 +113,17 @@ class EmbeddingCache:
 
 
 class AnswerCache:
-    """LLM 回答缓存：query -> answer"""
+    """LLM 回答缓存：query -> (answer, sources)
 
-    def __init__(self, db_path: str = ANSWER_CACHE_PATH, max_entries: int = MAX_ANSWER_ENTRIES):
+    连同来源一起缓存。若只缓存正文，命中时来源列表会变成空，
+    而回答里仍带着"参考自《xxx》"的行内引用，造成前端来源卡片与正文不一致。
+    """
+
+    def __init__(self, db_path: str = ANSWER_CACHE_PATH, max_entries: Optional[int] = None):
         self.db_path = db_path
-        self.max_entries = max_entries
+        # 不传则取设置项 max_answer_entries
+        self.max_entries = int(max_entries if max_entries is not None
+                               else get_config().get("max_answer_entries"))
         self._lock = threading.Lock()
         self._conn: Optional[sqlite3.Connection] = None
         self._init_db()
@@ -131,31 +139,49 @@ class AnswerCache:
                 created_at REAL NOT NULL
             )
         """)
+        # 兼容旧版缓存库：sources 列是后加的，已存在的库需要补列。
+        # 旧记录该列为 NULL，读取时按空列表处理。
+        cols = {r[1] for r in self._conn.execute("PRAGMA table_info(answer_cache)")}
+        if "sources" not in cols:
+            self._conn.execute("ALTER TABLE answer_cache ADD COLUMN sources TEXT")
+            logger.info("回答缓存已升级：新增 sources 列")
         self._conn.commit()
 
     def _query_hash(self, text: str) -> str:
         import hashlib
         return hashlib.md5(text.encode('utf-8')[:500]).hexdigest()
 
-    def get(self, query: str) -> Optional[str]:
+    def get(self, query: str) -> Optional[tuple]:
+        """命中返回 (answer, sources)，未命中返回 None"""
         qh = self._query_hash(query)
         with self._lock:
             row = self._conn.execute(
-                "SELECT answer FROM answer_cache WHERE query_hash = ? AND query_text = ?",
+                "SELECT answer, sources FROM answer_cache WHERE query_hash = ? AND query_text = ?",
                 (qh, query)
             ).fetchone()
         if row:
             logger.info(f"[缓存命中] 回答: '{query[:30]}...'")
-            return row[0]
+            sources = []
+            if row[1]:
+                try:
+                    loaded = json.loads(row[1])
+                    if isinstance(loaded, list):
+                        sources = loaded
+                except (json.JSONDecodeError, TypeError):
+                    # 缓存的来源损坏不应影响正文返回
+                    logger.warning("缓存来源解析失败，按无来源处理")
+            return row[0], sources
         return None
 
-    def put(self, query: str, answer: str):
+    def put(self, query: str, answer: str, sources: Optional[List[Dict]] = None):
         self._evict_if_needed()
         qh = self._query_hash(query)
+        sources_json = json.dumps(sources or [], ensure_ascii=False)
         with self._lock:
             self._conn.execute(
-                "INSERT OR REPLACE INTO answer_cache (query_hash, query_text, answer, created_at) VALUES (?, ?, ?, ?)",
-                (qh, query, answer, time.time())
+                "INSERT OR REPLACE INTO answer_cache "
+                "(query_hash, query_text, answer, sources, created_at) VALUES (?, ?, ?, ?, ?)",
+                (qh, query, answer, sources_json, time.time())
             )
             self._conn.commit()
 

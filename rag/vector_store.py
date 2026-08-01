@@ -15,6 +15,7 @@ FAISS + SQLite 向量存储模块
 import os
 import sqlite3
 import logging
+import threading
 import numpy as np
 from typing import List, Dict, Any, Optional
 
@@ -54,6 +55,11 @@ class FAISSStore:
         self.dimension = 1024
         self.index: Optional[faiss.Index] = None
         self.conn: Optional[sqlite3.Connection] = None
+        # 检索的多个通道会并行读同一个连接。sqlite3.threadsafety==3 只保证
+        # 连接对象本身可跨线程使用，并不保证多线程同时 execute 安全——
+        # 实测 12 线程并发会抛 InterfaceError: bad parameter or other API
+        # misuse。查询很快，用一把锁串起来对耗时几乎无影响。
+        self._lock = threading.Lock()
 
     # ── 初始化 ────────────────────────────────────────────────
 
@@ -103,13 +109,19 @@ class FAISSStore:
             uuids: List[str],
             texts: List[str],
             vectors: List[List[float]],
-            metadatas: List[Dict[str, str]]) -> int:
+            metadatas: List[Dict[str, str]],
+            persist: bool = True) -> List[int]:
         """批量添加文档
-        
-        返回: 成功添加的数量
+
+        参数:
+            persist: 是否立即把 FAISS 索引落盘。批量建库时传 False，
+                     全部写完后调用一次 persist()，避免每批都全量重写索引文件。
+
+        返回: 本次写入的 SQLite 主键列表（与入参顺序一一对应）。
+        调用方需要用它把外部索引（如 BM25）的位置序与 SQLite 行号对齐。
         """
         if not uuids:
-            return 0
+            return []
 
         n = len(uuids)
         if self.index is None or self.index.ntotal == 0:
@@ -131,21 +143,43 @@ class FAISSStore:
         )
         self.conn.commit()
 
-        # 获取本次写入的 ID 范围
-        first_id = self.conn.execute("SELECT last_insert_rowid()").fetchone()[0] - n + 1
+        # 按 uuid 回查真实主键，而不是依赖 last_insert_rowid() 做算术推算。
+        # 回查能保证即使插入不连续（并发写入、AUTOINCREMENT 跳号）也不会错位。
+        placeholders = ','.join(['?'] * n)
+        id_by_uuid = dict(self.conn.execute(
+            f"SELECT uuid, id FROM documents WHERE uuid IN ({placeholders})",
+            uuids
+        ).fetchall())
+        doc_ids = [id_by_uuid[uid] for uid in uuids]
 
-        # 2. 写入 FAISS
+        # 2. 写入 FAISS，用与 SQLite 完全一致的 ID
         vectors_np = np.array(vectors, dtype=np.float32)
-        ids_np = np.arange(first_id, first_id + n).astype(np.int64)
+        ids_np = np.array(doc_ids, dtype=np.int64)
         self.index.add_with_ids(vectors_np, ids_np)
 
         # 3. 持久化 FAISS 索引
-        faiss.write_index(self.index, self.faiss_path)
+        if persist:
+            faiss.write_index(self.index, self.faiss_path)
 
         logger.info(f"成功添加 {n} 条文档到向量存储")
-        return n
+        return doc_ids
+
+    def persist(self):
+        """将当前 FAISS 索引落盘。配合 add(persist=False) 批量写入后调用一次。"""
+        if self.index is not None:
+            faiss.write_index(self.index, self.faiss_path)
+            logger.info(f"FAISS 索引已保存: {self.faiss_path}（{self.index.ntotal} 条向量）")
 
     # ── 检索 ──────────────────────────────────────────────────
+
+    def query(self, sql: str, params=()) -> List[tuple]:
+        """带锁执行一条只读查询
+
+        检索的多个通道并行读同一个连接，直接用 conn.execute 会抛
+        InterfaceError。需要读 documents 表的地方都应走这里。
+        """
+        with self._lock:
+            return self.conn.execute(sql, params).fetchall()
 
     def search(self, vector: List[float], k: int = 10) -> List[Dict[str, Any]]:
         """检索最相似的 k 个文档
@@ -155,36 +189,52 @@ class FAISSStore:
             k: 返回数量
             
         返回:
-            [{"id", "score", "text", "metadata": {"title","chapter","category","source"}}, ...]
+            [{"id", "uuid", "score", "text", "metadata": {...}}, ...]
+            id 为 SQLite 主键，与 BM25 元数据中的 id 同属一个空间，
+            供上层做跨检索路的结果融合。
         """
         if self.index is None or self.index.ntotal == 0:
             logger.warning("向量索引为空，无法检索")
             return []
 
         query_np = np.array([vector], dtype=np.float32)
-        scores, indices = self.index.search(query_np, k)
+        # FAISS 的 search 不是线程安全的，与 SQLite 一起纳入同一把锁
+        with self._lock:
+            scores, indices = self.index.search(query_np, k)
+
+            valid = [(float(s), int(i)) for s, i in zip(scores[0], indices[0])
+                     if i != -1]
+            if not valid:
+                return []
+
+            # 一次查回所有命中行，而不是循环里逐条查：
+            # k=30 时能省下 29 次往返
+            ids = [i for _, i in valid]
+            placeholders = ",".join("?" * len(ids))
+            rows = {
+                r[0]: r for r in self.conn.execute(
+                    f"SELECT id, uuid, text, title, chapter, category, source "
+                    f"FROM documents WHERE id IN ({placeholders})",
+                    ids
+                ).fetchall()
+            }
 
         results = []
-        for score, idx in zip(scores[0], indices[0]):
-            if idx == -1:  # FAISS 用 -1 表示无结果
-                continue
-
-            row = self.conn.execute(
-                "SELECT uuid, text, title, chapter, category, source FROM documents WHERE id = ?",
-                (int(idx),)
-            ).fetchone()
+        # 按 FAISS 返回的相似度顺序输出，不能用 SQL 的返回顺序
+        for score, idx in valid:
+            row = rows.get(idx)
             if row is None:
                 continue
-
             results.append({
-                "id": row[0],
-                "score": float(score),
-                "text": row[1],
+                "id": idx,
+                "uuid": row[1],
+                "score": score,
+                "text": row[2],
                 "metadata": {
-                    "title": row[2],
-                    "chapter": row[3],
-                    "category": row[4],
-                    "source": row[5],
+                    "title": row[3],
+                    "chapter": row[4],
+                    "category": row[5],
+                    "source": row[6],
                 }
             })
 

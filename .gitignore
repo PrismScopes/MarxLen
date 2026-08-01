@@ -18,19 +18,40 @@ rag/cache_embeddings.db-shm
 rag/cache_embeddings.db-wal
 rag/documents.db-shm
 rag/documents.db-wal
+# 对话记录属于用户隐私，连同 WAL 副产物一起排除
 api/conversations.db
+api/conversations.db-shm
+api/conversations.db-wal
 
 # ===== 环境配置 =====
 .env
 rag/.env
+# 用户在设置页改动的配置，属于本地状态，不入库
+config.json
 
 # ===== 建库原料/工具（不提交） =====
-ww/
+# ww/ 本身要保留（内含放置说明），只忽略里面的语料文件，
+# 语料单独发布在 marxist-classics-markdown 仓库
+ww/*
+!ww/README.md
 pdf_ocr/
+# 建库与向量化脚本不对外分发：索引由本仓库直接提供预构建版本
 rag/ingest_philosophy.py
+clean_ww_texts.py
+rebuild_bm25_index.py
 
 # ===== 开发笔记 =====
 过程/
+marxist-rag-ui/TRAE-开发过程.md
+marxist-rag-ui/前端技术报告.md
+
+# ===== 数据库备份（体积大，仅本地留存） =====
+backup_*/
+
+# ===== 调试残留 =====
+err_mcp.txt
+out_mcp.txt
+_probe*.py
 
 # ===== 编辑器 =====
 .idea/

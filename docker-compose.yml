@@ -1,0 +1,38 @@
+services:
+  marxlen:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: marxlen:latest
+    container_name: marxlen
+    ports:
+      - "8000:8000"
+    env_file:
+      # API Key 等敏感配置从 rag/.env 读取（该文件不入库，需自行创建）
+      - rag/.env
+    volumes:
+      # 索引与文档库：容器重建后知识库不丢失
+      - ./rag/faiss_index.idx:/app/rag/faiss_index.idx
+      - ./rag/bm25_index.pkl:/app/rag/bm25_index.pkl
+      - ./rag/documents.db:/app/rag/documents.db
+      # 提示词挂载后可直接在宿主机编辑，重启容器即生效，无需重新构建镜像
+      - ./Prompt:/app/Prompt:ro
+      # 原文语料：阅读器与来源跳转依赖它。语料不在本仓库，需按 ww/README.md
+      # 自行下载。只读挂载即可，容器内不会写入。
+      # 目录为空时阅读器不可用，但问答功能不受影响。
+      - ./ww:/app/ww:ro
+      # 运行时数据：缓存与对话历史。代码把这些库直接写在 rag/ 与 api/ 目录下，
+      # 因此按文件逐个绑定。首次启动前需确保宿主机上这些文件已存在
+      # （空文件即可：SQLite 会自动初始化表结构）
+      - ./rag/cache_embeddings.db:/app/rag/cache_embeddings.db
+      - ./rag/cache_answers.db:/app/rag/cache_answers.db
+      - ./api/conversations.db:/app/api/conversations.db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://localhost:8000/api/health',timeout=5).status==200 else sys.exit(1)"]
+      interval: 30s
+      timeout: 10s
+      # RAG 引擎需加载 FAISS 与 BM25 索引，启动较慢，给足宽限期
+      start_period: 90s
+      retries: 3

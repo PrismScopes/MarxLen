@@ -6,6 +6,8 @@ from typing import List, Dict, Optional
 from dotenv import load_dotenv
 from openai import OpenAI
 
+from .config_store import get_config
+
 # 设置日志
 logging.basicConfig(
     level=logging.INFO,
@@ -17,16 +19,11 @@ logger = logging.getLogger(__name__)
 # 加载配置 (override=True确保优先读取.env文件)
 load_dotenv(override=True)
 
-# 默认配置
-EMBEDDING_MODEL = os.getenv("EMBED_MODEL", "Qwen/Qwen3-Embedding-0.6B")
+# 与建库脚本共同约定的向量维度，改动需重建全部索引，故不做成可配置项
 EMBEDDING_DIM = 1024
-API_BASE_URL = os.getenv("EMBED_API_BASE_URL", "https://api2.aigcbest.top/v1")
-API_KEY = os.getenv("EMBED_API_KEY") or os.getenv("RERANK_API_KEY", "")
+# 单条文本与单批次的上限由嵌入服务端能力决定，不随用户偏好变化
 MAX_TEXT_LENGTH = 8000
 MAX_BATCH_SIZE = 100
-CONNECT_TIMEOUT = 10.0
-READ_TIMEOUT = 60.0
-MAX_RETRIES = 3
 
 # 异常体系
 class EmbeddingError(Exception): pass
@@ -40,19 +37,22 @@ class QwenEmbedder:
     """Qwen3-Embedding-0.6B 向量化模块"""
 
     def __init__(self, api_key: Optional[str] = None, base_url: Optional[str] = None):
-        self.api_key = api_key or API_KEY
-        self.base_url = base_url or API_BASE_URL
-        
+        cfg = get_config()
+        # 显式传参优先，其次读设置项
+        self.api_key = api_key or cfg.get("embed_api_key")
+        self.base_url = base_url or cfg.get("embed_api_base_url")
+        self.model = cfg.get("embed_model")
+
         if not self.api_key:
             raise InputValidationError("API_KEY 不能为空，请在 .env 文件中配置 EMBED_API_KEY")
             
         self.client = OpenAI(
             api_key=self.api_key,
             base_url=self.base_url,
-            timeout=READ_TIMEOUT,
-            max_retries=MAX_RETRIES
+            timeout=float(cfg.get("embed_timeout")),
+            max_retries=int(cfg.get("embed_max_retries")),
         )
-        logger.debug(f"已初始化 QwenEmbedder, 模型: {EMBEDDING_MODEL}")
+        logger.debug(f"已初始化 QwenEmbedder, 模型: {self.model}")
 
     def _validate_input(self, text: str) -> str:
         """输入验证"""
@@ -84,7 +84,7 @@ class QwenEmbedder:
         
         try:
             resp = self.client.embeddings.create(
-                model=EMBEDDING_MODEL,
+                model=self.model,
                 input=texts,
             )
             
