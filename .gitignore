@@ -23,6 +23,12 @@ api/conversations.db
 api/conversations.db-shm
 api/conversations.db-wal
 
+# ===== 知识库索引（改由 GitHub Releases 分发，不入库） =====
+# 三个文件合计 1.16GB，通过 deploy\install.ps1 自动下载到本目录
+rag/documents.db
+rag/faiss_index.idx
+rag/bm25_index.pkl
+
 # ===== 环境配置 =====
 .env
 rag/.env
@@ -47,6 +53,9 @@ marxist-rag-ui/前端技术报告.md
 
 # ===== 数据库备份（体积大，仅本地留存） =====
 backup_*/
+
+# ===== 部署辅助脚本（下划线开头的临时/开发用文件不入库） =====
+deploy/_*.ps1
 
 # ===== 调试残留 =====
 err_mcp.txt
