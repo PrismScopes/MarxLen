@@ -1,0 +1,24 @@
+[project]
+name = "rag"
+version = "0.1.0"
+description = "马列经典著作 RAG 智能问答系统"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "ddgs>=9.14.4",
+    "faiss-cpu>=1.10.0",
+    "fastapi>=0.139.0",
+    "jieba>=0.42.1",
+    "langchain>=1.3.0",
+    "langchain-openai>=1.2.1",
+    "langchain-text-splitters>=1.1.2",
+    "numpy>=1.25.0",
+    "openai>=2.36.0",
+    "portalocker>=3.2.0",
+    "python-dotenv>=1.1.1",
+    "rank-bm25>=0.2.2",
+    "requests>=2.32.4",
+    "sse-starlette>=3.4.5",
+    "uvicorn>=0.50.1",
+    "watchfiles>=1.2.0",
+]
