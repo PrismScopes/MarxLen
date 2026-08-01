@@ -36,10 +36,10 @@ class RAGPipeline:
         # 初始化回答缓存
         self.answer_cache = AnswerCache()
         
-        logging.info("正在初始化大语言模型 (DeepSeek)...")
+        logging.info("正在初始化大语言模型...")
         self.api_key = self.config.get("api_key")
-        if not self.api_key or "replace_with_your_deepseek_key" in self.api_key:
-            raise ValueError("请在 .env 文件中正确配置 DEEPSEEK_API_KEY")
+        if not self.api_key or "your-api-key" in self.api_key:
+            raise ValueError("请在 rag/.env 中正确配置 OPENAI_API_KEY")
             
         self.base_url = self.config.get("api_base_url")
         self.model_name = self.config.get("model")

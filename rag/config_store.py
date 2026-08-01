@@ -175,7 +175,8 @@ CONFIG_SCHEMA: List[ConfigItem] = [
         key="model", type="select", default="deepseek-chat",
         label="对话模型", category="model",
         description="用于生成最终回答的大语言模型",
-        store="env", env_key="DEEPSEEK_MODEL",
+        store="env", env_key="OPENAI_MODEL",
+        env_aliases=["DEEPSEEK_MODEL"],
     ),
     ConfigItem(
         key="temperature", type="number", default=0.3,
@@ -386,13 +387,15 @@ CONFIG_SCHEMA: List[ConfigItem] = [
         key="api_base_url", type="text", default="https://api.deepseek.com/v1",
         label="对话模型 API 地址", category="api",
         description="兼容 OpenAI 格式的端点地址",
-        store="env", env_key="DEEPSEEK_API_BASE_URL",
+        store="env", env_key="OPENAI_API_BASE_URL",
+        env_aliases=["DEEPSEEK_API_BASE_URL"],
     ),
     ConfigItem(
         key="api_key", type="password", default="",
         label="对话模型 API Key", category="api",
         description="留空表示不修改，沿用 .env 中已配置的值",
-        store="env", env_key="DEEPSEEK_API_KEY", secret=True,
+        store="env", env_key="OPENAI_API_KEY",
+        env_aliases=["DEEPSEEK_API_KEY"], secret=True,
     ),
     ConfigItem(
         key="embed_api_base_url", type="text", default="https://api2.aigcbest.top/v1",
@@ -443,7 +446,8 @@ CONFIG_SCHEMA: List[ConfigItem] = [
         label="可选模型列表", category="api",
         description="设置页下拉框的候选项，格式：模型ID:显示名，多个用英文逗号分隔。"
                     "留空则只显示当前模型",
-        store="env", env_key="DEEPSEEK_MODEL_LIST",
+        store="env", env_key="OPENAI_MODEL_LIST",
+        env_aliases=["DEEPSEEK_MODEL_LIST"],
     ),
 
     # ── 服务 ────────────────────────────────────────────────

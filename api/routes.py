@@ -369,7 +369,7 @@ async def delete_conversation(conv_id: str):
 async def list_models():
     """读取可用模型列表
 
-    候选项来自设置项 model_list（落库为 .env 的 DEEPSEEK_MODEL_LIST），
+    候选项来自设置项 model_list（落库为 .env 的 OPENAI_MODEL_LIST），
     格式：id1:显示名1,id2:显示名2
     留空时只返回当前正在使用的模型这一项。
     """
@@ -400,7 +400,7 @@ async def list_models():
 
 @router.post("/settings/model")
 async def update_model(req: ModelUpdateRequest):
-    """更新当前使用的模型（写入 rag/.env 的 DEEPSEEK_MODEL）
+    """更新当前使用的模型（写入 rag/.env 的 OPENAI_MODEL）
 
     等价于 PUT /api/settings {"updates": {"model": ...}}，
     保留此端点是为了兼容前端已有的模型切换入口。

@@ -75,10 +75,12 @@ cp rag/.env.example rag/.env
 
 | 变量 | 用途 | 去哪申请 |
 |------|------|----------|
-| `DEEPSEEK_API_KEY` | 生成回答 | [DeepSeek 开放平台](https://platform.deepseek.com/) |
+| `OPENAI_API_KEY` | 生成回答 | 任意兼容 OpenAI 格式的服务，如 [DeepSeek](https://platform.deepseek.com/) |
 | `EMBED_API_KEY` | 向量检索与重排序 | 任意兼容 OpenAI 格式的服务（如硅基流动） |
 
-`DEEPSEEK_API_BASE_URL` 与 `EMBED_API_BASE_URL` 也要改成对应服务商的地址。其余项留空即用默认值。
+`OPENAI_API_BASE_URL` 与 `EMBED_API_BASE_URL` 也要改成对应服务商的地址。其余项留空即用默认值。
+
+接口按 OpenAI 标准调用，所以不限于 DeepSeek——任何兼容该格式的服务（OpenAI、通义、Kimi、本地 vLLM 等）改掉 base_url 和模型 ID 就能用。
 
 ### 3. 下载原文语料（可选，但推荐）
 
@@ -180,10 +182,10 @@ rag/.venv/Scripts/python -m api.main
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| `DEEPSEEK_API_BASE_URL` | `https://api.deepseek.com/v1` | 生成模型服务地址 |
-| `DEEPSEEK_API_KEY` | — | 生成模型密钥 |
-| `DEEPSEEK_MODEL` | `deepseek-chat` | 默认模型 ID |
-| `DEEPSEEK_MODEL_LIST` | — | 设置页下拉可选模型，格式 `id1:显示名1,id2:显示名2` |
+| `OPENAI_API_BASE_URL` | `https://api.deepseek.com/v1` | 生成模型服务地址 |
+| `OPENAI_API_KEY` | — | 生成模型密钥 |
+| `OPENAI_MODEL` | `deepseek-chat` | 默认模型 ID |
+| `OPENAI_MODEL_LIST` | — | 设置页下拉可选模型，格式 `id1:显示名1,id2:显示名2` |
 | `EMBED_API_BASE_URL` | — | embedding / rerank 服务地址 |
 | `EMBED_API_KEY` | — | embedding / rerank 密钥 |
 | `EMBED_MODEL` | `Qwen/Qwen3-Embedding-0.6B` | 向量模型，**不要改** |
@@ -191,6 +193,8 @@ rag/.venv/Scripts/python -m api.main
 | `CORS_ALLOW_ORIGINS` | 本地两个地址 | 前端独立部署到别的域名时才需要配 |
 
 `EMBED_MODEL` 必须保持默认值。仓库提供的索引是用这个模型生成的，换成别的模型后向量维度与语义空间都不一致，检索结果会完全错乱。你的 embedding 服务商需要支持该模型。
+
+从旧版本升级：原来的 `DEEPSEEK_API_KEY` / `DEEPSEEK_MODEL` 等变量名仍然可用，程序会自动回退读取，不必改动现有 `.env`。新名与旧名同时存在时以新名为准。
 
 ## 提示词自定义
 
