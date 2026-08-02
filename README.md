@@ -50,7 +50,7 @@ MarxLen（马列通）让你用自然语言向马列经典著作提问。系统�
 
 面向完全不懂技术的用户，全程双击即可，不需要 git、不需要 clone、不需要会 GitHub：
 
-1. 打开本仓库的 [Releases](https://github.com/PrismScopes/MarxLen/releases) 页面，下载 **MarxLen.exe**（约 178 KB）
+1. 打开本仓库的 [Releases](https://github.com/PrismScopes/MarxLen/releases) 页面，下载 **MarxLen.exe**（约 10 MB。exe 首次运行会自动从 Releases 拉取部署脚本，无需手动下载其他文件）
 2. 把 exe 放到你打算安装的文件夹（例如 `D:\MarxLen`），双击它
    - exe 放在哪个文件夹，就装到哪个文件夹；放在空文件夹里它会**自动下载项目代码**，无需手动 clone
 3. 选择「1 安装」，程序会自动：
@@ -260,7 +260,7 @@ rag/                检索与问答引擎
   retriever.py      混合检索（向量 + BM25 并行，RRF 融合）
   generator.py      回答生成与流式输出
   query_planner.py  问题解构与检索计划
-deploy/             部署脚本源码（不随仓库分发，打包为 MarxLen.exe 经 Releases 提供）
+deploy/             部署脚本源码（不随仓库分发，打包为 MarxLen.exe 与 deploy-scripts.zip 经 Releases 提供）
 Prompt/             提示词（可独立编辑，改动无需改代码）
 marxist-rag-ui/     前端页面
 tests/              测试
@@ -300,6 +300,9 @@ rag/.venv/Scripts/python tests/test_degrade.py
 
 **启动很慢？**
 需加载 637 MB 的 FAISS 索引和 245 MB 的 BM25 索引，首次启动约一分半属正常。
+
+**下载或运行 MarxLen.exe 被 Windows 安全中心拦截？**
+exe 没有数字签名，Windows 对「无签名 + 新发布」的文件会拦截一次，属于正常现象，不是病毒。右键 exe → 属性 → 勾选「解除锁定」；若仍被拦，点「更多信息 → 仍要运行」，或把安装文件夹加入「病毒和威胁防护 → 排除项」。
 
 **回答里的来源点了没反应？**
 需要双击。若仍无反应，多半是没下载语料。
