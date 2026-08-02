@@ -402,6 +402,23 @@ export function updateLoadingStage(el, data) {
  */
 function appendStageDetail(row, detail) {
   if ($('.stage-detail', row.parentNode)) return;
+  const box = createStageDetail(detail);
+  if (!box) return;
+  // 挂在阶段行之后，缩进对齐
+  row.insertAdjacentElement('afterend', box);
+}
+
+/**
+ * 构造一张可展开的问题解构卡片。
+ *
+ * 独立出来是为了让历史对话重建时能复用：解构结果只在 SSE 期间出现一次，
+ * 刷新页面后要靠 localStorage 里存的同一份数据把卡片原样还原。
+ *
+ * @param {Object} detail - 解构结果
+ * @returns {HTMLElement|null} - 没有任何可展示字段时返回 null
+ */
+export function createStageDetail(detail) {
+  if (!detail) return null;
 
   const box = document.createElement('details');
   box.className = 'stage-detail';
@@ -437,9 +454,11 @@ function appendStageDetail(row, detail) {
     body.appendChild(makeDetailLine('关键词', detail.keywords.join('、')));
   }
 
+  // 全是空字段就别挂一张空卡片出去
+  if (!body.childNodes.length) return null;
+
   box.appendChild(body);
-  // 挂在阶段行之后，缩进对齐
-  row.insertAdjacentElement('afterend', box);
+  return box;
 }
 
 /**

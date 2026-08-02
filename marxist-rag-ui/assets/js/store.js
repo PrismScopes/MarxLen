@@ -285,3 +285,51 @@ export function clearThinkingContents(convId) {
     /* 忽略 */
   }
 }
+
+/**
+ * 保存某一轮回答的问题解构结果。
+ *
+ * 解构结果只在 SSE 的 stage 事件里出现一次，后端不入库，
+ * 不存下来的话刷新页面就永久丢失。存法与思考内容一致：
+ * 按"这是第几条助手回答"编号，重建时按同一序号取回。
+ *
+ * @param {string} convId - 对话 ID
+ * @param {number} index - 这是该对话的第几条助手回答（从 0 开始）
+ * @param {Object} detail - 解构结果对象
+ */
+export function saveStageDetail(convId, index, detail) {
+  if (!convId || !detail) return;
+  const key = STORAGE_KEYS.stageDetailPrefix + convId;
+  const stored = readJSON(key, {});
+  stored[String(index)] = detail;
+
+  // 与思考内容同样的裁剪策略，避免长对话把 localStorage 配额撑爆
+  const keys = Object.keys(stored);
+  if (keys.length > THINKING_MAX_ENTRIES) {
+    keys.sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+    keys.slice(0, keys.length - THINKING_KEEP_ENTRIES)
+      .forEach((k) => delete stored[k]);
+  }
+  writeJSON(key, stored);
+}
+
+/**
+ * 读取某个对话保存的全部解构结果。
+ * @param {string} convId - 对话 ID
+ * @returns {Object<string, Object>} - { "0": {...}, "1": {...} }
+ */
+export function getStageDetails(convId) {
+  return readJSON(STORAGE_KEYS.stageDetailPrefix + convId, {});
+}
+
+/**
+ * 删除对话时一并清理它的解构记录。
+ * @param {string} convId - 对话 ID
+ */
+export function clearStageDetails(convId) {
+  try {
+    localStorage.removeItem(STORAGE_KEYS.stageDetailPrefix + convId);
+  } catch {
+    /* 忽略 */
+  }
+}

@@ -22,6 +22,8 @@ export const STORAGE_KEYS = {
   convFolders: 'conv_folders',
   /** 思考内容前缀，实际键为 thinking_<convId> */
   thinkingPrefix: 'thinking_',
+  /** 问题解构结果前缀，实际键为 stage_detail_<convId> */
+  stageDetailPrefix: 'stage_detail_',
   /** 阅读器上次读到的位置 { source, seq } */
   readerLast: 'reader_last',
 };

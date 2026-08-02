@@ -10,6 +10,7 @@
 import * as api from './api.js';
 import {
   state, isSwitchedAway, saveThinkingContent, getThinkingContents,
+  saveStageDetail, getStageDetails,
 } from './store.js';
 import { STREAM_RENDER } from './config.js';
 import { $, $$, refreshIcons, scrollToBottom } from './dom-utils.js';
@@ -18,7 +19,7 @@ import { composeWithQuotes, clearQuotes, hasQuotes } from './quote.js';
 import {
   createUserMessage, createAssistantMessage, createThinkingPanel,
   createSearchRefsPanel, fillSearchRefs, createLoadingIndicator,
-  updateLoadingStage, collapseLoadingStages,
+  updateLoadingStage, collapseLoadingStages, createStageDetail,
   appendSources, appendMessageActions, renderAnswer,
   restoreUserMessage, enterEditMode, truncateAfter,
   setRowOriginalText, getRowOriginalText,
@@ -306,6 +307,10 @@ export function createChatController(refs, callbacks) {
     let fullAnswer = '';
     let thinkingText = '';
     let sources = [];
+    // 问题解构结果。后端只在 stage 事件里给一次、且不入库，
+    // 这里先接住，done 时连同对话 id 一起存进 localStorage，
+    // 否则刷新页面后卡片就永久消失了
+    let stageDetail = null;
     // done 事件带回的消息树字段，收到后才知道要不要渲染版本切换器
     let doneMeta = null;
     // 本轮用户消息的 id，编辑重发后要靠它刷新用户行的切换器
@@ -343,6 +348,7 @@ export function createChatController(refs, callbacks) {
           // 后端逐阶段汇报进度，首个反馈 0.04s 就到，
           // 而正文第一个字要等 20 秒，这段等待靠它撑住
           updateLoadingStage(loading, data);
+          if (data.detail) stageDetail = data.detail;
           if (!muted) scrollToBottom(chatMessages);
         } else if (event === 'thinking' && data.content) {
           thinkingText += data.content;
@@ -376,6 +382,12 @@ export function createChatController(refs, callbacks) {
         } else if (event === 'done') {
           clearInterval(timer);
           if (data.conversation_id) {
+            // 顺序很重要：必须先用旧的 streamingConvId 判断用户有没有切走，
+            // 再去更新它。反过来写的话，新对话（streamingConvId 初始为 null）
+            // 会先被改成真实 id，紧接着 isSwitchedAway() 拿新 id 与仍是 null 的
+            // currentConversationId 比较，误判成"已切走"，currentConversationId
+            // 就永远补不上——下一条消息又带着 null 发出去，后端只好再建一个对话。
+            const switchedAway = isSwitchedAway();
             // 新对话在后端首次落库后才拿到真正的 ID，
             // 这时 streamingConvId 还是 null，必须补上，
             // 否则 activeStream 的接回判断和思考内容落库都会失效
@@ -384,7 +396,7 @@ export function createChatController(refs, callbacks) {
             }
             // currentConversationId 只在用户仍停留在这一轮时才更新。
             // 他要是已经切到别的对话，改它会把界面强行拉回来
-            if (!isSwitchedAway()) {
+            if (!switchedAway) {
               state.currentConversationId = data.conversation_id;
             }
           }
@@ -408,6 +420,11 @@ export function createChatController(refs, callbacks) {
           const convIdForSave = data.conversation_id || state.streamingConvId;
           if (data.thinking_content && convIdForSave) {
             saveThinkingContent(convIdForSave, answerIndex, data.thinking_content);
+          }
+          // 解构结果同理：后端不入库，只有存进 localStorage
+          // 刷新页面后才能把卡片还原出来
+          if (stageDetail && convIdForSave) {
+            saveStageDetail(convIdForSave, answerIndex, stageDetail);
           }
         } else if (event === 'error') {
           throw new Error(data.detail || '未知错误');
@@ -524,6 +541,9 @@ export function createChatController(refs, callbacks) {
     showConversationView();
     conversationContainer.innerHTML = '';
 
+    // 解构结果只存在前端，按"第几条助手回答"编号取回
+    const stageDetails = getStageDetails(convId);
+
     // 切回正在生成的那个对话：后端还没落库这一轮，
     // 拉回来的 messages 里没有正在流式的回答，
     // 所以要把留在 activeStream 里的节点接回去
@@ -553,6 +573,19 @@ export function createChatController(refs, callbacks) {
         const think = thinkingContents[String(assistantIdx)];
         const panels = [];
         if (think) panels.push(createThinkingPanel(think, true));
+
+        // 还原问题解构卡片。SSE 期间它挂在 .thinking-steps 容器里，
+        // 这里用同样的容器包一层，位置和样式才与生成时一致
+        const detail = stageDetails[String(assistantIdx)];
+        if (detail) {
+          const card = createStageDetail(detail);
+          if (card) {
+            const box = document.createElement('div');
+            box.className = 'thinking-steps';
+            box.appendChild(card);
+            panels.push(box);
+          }
+        }
         assistantIdx++;
 
         renderAnswer(msgText, msg.content || '', panels);

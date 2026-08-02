@@ -10,6 +10,7 @@ import * as api from './api.js';
 import {
   state, getFolders, saveFolders, getFolderMap,
   addFolder, removeFolder, moveConversationToFolder, clearThinkingContents,
+  clearStageDetails,
 } from './store.js';
 import {
   showInputDialog, showConfirmDialog, showFolderPickerDialog, showContextMenu,
@@ -110,6 +111,7 @@ function openConversationMenu(anchor, conv, handlers) {
         try {
           await api.deleteConversation(conv.id);
           clearThinkingContents(conv.id);
+          clearStageDetails(conv.id);
           if (conv.id === state.currentConversationId) handlers.onDeleteCurrent();
           handlers.onRefresh();
         } catch (err) {
