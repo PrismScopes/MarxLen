@@ -1,4 +1,7 @@
 <p align="center">
+  <img src="marxist-rag-ui/MarxLen2.svg" width="180" alt="MarxLen" />
+</p>
+<p align="center">
   <h1 align="center">MarxLen · 马列通</h1>
   <p align="center">基于检索增强生成（RAG）的马列经典著作智能问答系统</p>
 </p>
