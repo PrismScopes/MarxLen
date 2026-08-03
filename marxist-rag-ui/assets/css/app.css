@@ -1322,19 +1322,25 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 48px;
-        height: 48px;
+        width: 72px;
+        height: 72px;
+        /* 实心主色底 + 白色线稿。比原来的 48px 大一档：品牌标志是
+           马头穿笔的线稿，细节比 lucide 单线图标多，太小会糊成一团 */
+        color: #FFFFFF;
         background-color: var(--color-primary);
         border-radius: 50%;
         margin-bottom: 20px;
         flex-shrink: 0;
       }
 
-      .welcome-icon svg,
-      .welcome-icon i {
-        width: 24px;
-        height: 24px;
-        color: #FFFFFF;
+      .welcome-logo {
+        /* viewBox 是 487×553 的竖长比例，只锁高度、宽度自适应，
+           写死等宽等高会把马头压扁 */
+        width: auto;
+        height: 46px;
+        /* 原图是直角端点，缩小后转折处会出现毛刺 */
+        stroke-linecap: round;
+        stroke-linejoin: round;
       }
 
       .welcome-title {
