@@ -9,7 +9,8 @@ import { $, $$, refreshIcons, isMobile, enableAutoResize } from './dom-utils.js'
 import { MODE_DESCRIPTIONS, TEXTAREA_MAX_HEIGHT, FALLBACK_MODEL } from './config.js';
 import * as api from './api.js';
 import {
-  state, setThinkingMode, setSearchMode, getThinkingContents,
+  state, setThinkingEffort, applyDefaultThinkingEffort,
+  setSearchMode, getThinkingContents,
 } from './store.js';
 import { initMarkdown } from './markdown.js';
 import { initTheme } from './theme.js';
@@ -40,9 +41,12 @@ const refs = {
   newChatBtn: $('#newChatBtn'),
   modelSelector: $('#modelSelector'),
   modelSelectorName: $('#modelSelectorName'),
-  modelDropdown: $('#modelDropdown'),
+  modelModalOverlay: $('#modelModalOverlay'),
+  modelModalCloseBtn: $('#modelModalCloseBtn'),
+  modelModalModelList: $('#modelModalModelList'),
+  modelModalEffortList: $('#modelModalEffortList'),
+  modelModalSettingsBtn: $('#modelModalSettingsBtn'),
   modeDescription: $('#modeDescription'),
-  thinkingToggle: $('#thinkingToggle'),
   searchToggle: $('#searchToggle'),
   settingsOverlay: $('#settingsOverlay'),
   settingsPanelBody: $('#settingsPanelBody'),
@@ -145,42 +149,133 @@ function initSettingsPanel() {
   });
 }
 
-// ── 模型选择 ────────────────────────────────────────────────
+// ── 模型与推理等级弹窗(参考 DSH 的模型选择弹窗) ─────────────
+
+/** 思考强度的展示文案(与 DSH 推理等级一致) */
+const EFFORT_LABELS = {
+  off: { label: '关闭思考', short: 'Off', desc: '不启用推理，秒回' },
+  high: { label: '标准思考', short: 'High', desc: '标准推理强度' },
+  max: { label: '深度思考', short: 'Max', desc: '深度推理，耗时较长' },
+};
+const EFFORT_ORDER = ['off', 'high', 'max'];
 
 /**
- * 渲染模型下拉列表。
+ * 刷新触发器文案:"模型名 · 档位"组合(如 deepseek-v4-pro · Max)。
  */
-function renderModelDropdown() {
-  refs.modelDropdown.innerHTML = '';
-  state.availableModels.forEach((model) => {
-    const item = document.createElement('div');
-    item.className = 'model-dropdown-item' + (model.id === state.currentModel ? ' active' : '');
-    item.setAttribute('role', 'option');
-    item.setAttribute('aria-selected', model.id === state.currentModel ? 'true' : 'false');
-    item.textContent = model.name;
-    item.addEventListener('click', (e) => {
-      e.stopPropagation();
-      selectModel(model);
-    });
-    refs.modelDropdown.appendChild(item);
-  });
+function updateModelSelectorLabel() {
+  const model = state.availableModels.find((m) => m.id === state.currentModel);
+  const name = model ? model.name : (state.currentModel || '加载中...');
+  const effort = EFFORT_LABELS[state.thinkingEffort] || EFFORT_LABELS.off;
+  refs.modelSelectorName.textContent = `${name} · ${effort.short}`;
 }
 
 /**
- * 选中某个模型并持久化到后端。
+ * 渲染弹窗内容:「模型」与「推理等级」两个面板。
+ */
+function renderModelModal() {
+  // ── 模型组 ──
+  refs.modelModalModelList.innerHTML = '';
+  state.availableModels.forEach((model) => {
+    const active = model.id === state.currentModel;
+    const item = document.createElement('div');
+    item.className = 'model-modal-option' + (active ? ' active' : '');
+    item.setAttribute('role', 'option');
+    item.setAttribute('aria-selected', active ? 'true' : 'false');
+
+    const stack = document.createElement('div');
+    stack.className = 'model-modal-option-stack';
+    const name = document.createElement('div');
+    name.className = 'model-modal-option-name';
+    name.textContent = model.name;
+    stack.appendChild(name);
+    if (model.provider && model.provider !== 'DeepSeek') {
+      const desc = document.createElement('div');
+      desc.className = 'model-modal-option-desc';
+      desc.textContent = model.provider;
+      stack.appendChild(desc);
+    }
+    item.appendChild(stack);
+
+    const check = document.createElement('i');
+    check.setAttribute('data-lucide', 'check');
+    check.className = 'model-modal-check';
+    item.appendChild(check);
+
+    item.addEventListener('click', () => selectModel(model));
+    refs.modelModalModelList.appendChild(item);
+  });
+
+  // ── 推理等级组 ──
+  refs.modelModalEffortList.innerHTML = '';
+  EFFORT_ORDER.forEach((effort) => {
+    const meta = EFFORT_LABELS[effort];
+    const active = effort === state.thinkingEffort;
+    const item = document.createElement('div');
+    item.className = 'model-modal-option' + (active ? ' active' : '');
+    item.setAttribute('role', 'option');
+    item.setAttribute('aria-selected', active ? 'true' : 'false');
+
+    const stack = document.createElement('div');
+    stack.className = 'model-modal-option-stack';
+    const name = document.createElement('div');
+    name.className = 'model-modal-option-name';
+    name.textContent = meta.label;
+    const desc = document.createElement('div');
+    desc.className = 'model-modal-option-desc';
+    desc.textContent = meta.desc;
+    stack.append(name, desc);
+    item.appendChild(stack);
+
+    const check = document.createElement('i');
+    check.setAttribute('data-lucide', 'check');
+    check.className = 'model-modal-check';
+    item.appendChild(check);
+
+    item.addEventListener('click', () => selectEffort(effort));
+    refs.modelModalEffortList.appendChild(item);
+  });
+
+  refreshIcons();
+}
+
+/**
+ * 打开 / 关闭模型弹窗。
+ */
+function openModelModal() {
+  renderModelModal();
+  refs.modelModalOverlay.classList.add('open');
+  refs.modelSelector.setAttribute('aria-expanded', 'true');
+}
+
+function closeModelModal() {
+  refs.modelModalOverlay.classList.remove('open');
+  refs.modelSelector.setAttribute('aria-expanded', 'false');
+}
+
+/**
+ * 选中某个模型并持久化到后端(弹窗保持打开,便于继续调档位)。
  * @param {Object} model - 模型对象
  */
 async function selectModel(model) {
   state.currentModel = model.id;
-  refs.modelSelectorName.textContent = model.name;
-  refs.modelDropdown.classList.remove('open');
-  refs.modelSelector.setAttribute('aria-expanded', 'false');
-  renderModelDropdown();
+  updateModelSelectorLabel();
+  renderModelModal();
   try {
     await api.saveModel(model.id);
   } catch (err) {
     console.error('保存模型设置失败:', err);
   }
+}
+
+/**
+ * 选中某个推理等级(即时生效,弹窗保持打开)。
+ * @param {string} effort - off / high / max
+ */
+function selectEffort(effort) {
+  setThinkingEffort(effort);
+  updateModelSelectorLabel();
+  renderModelModal();
+  updateModeDescription();
 }
 
 /**
@@ -196,34 +291,44 @@ async function loadModels() {
   }
   const first = state.availableModels[0];
   state.currentModel = first.id;
-  refs.modelSelectorName.textContent = first.name;
-  renderModelDropdown();
+  updateModelSelectorLabel();
+  renderModelModal();
 }
 
 /**
- * 绑定模型选择器的展开/收起。
+ * 绑定模型弹窗的开关与键盘行为。
  */
 function initModelSelector() {
-  const toggle = () => {
-    const open = refs.modelDropdown.classList.toggle('open');
-    refs.modelSelector.setAttribute('aria-expanded', open ? 'true' : 'false');
-  };
-
   refs.modelSelector.addEventListener('click', (e) => {
     e.stopPropagation();
-    toggle();
-  });
-  refs.modelSelector.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
-    if (e.key === 'Escape') {
-      refs.modelDropdown.classList.remove('open');
-      refs.modelSelector.setAttribute('aria-expanded', 'false');
+    if (refs.modelModalOverlay.classList.contains('open')) {
+      closeModelModal();
+    } else {
+      openModelModal();
     }
   });
-  // 点击别处收起
-  document.addEventListener('click', () => {
-    refs.modelDropdown.classList.remove('open');
-    refs.modelSelector.setAttribute('aria-expanded', 'false');
+  refs.modelSelector.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      openModelModal();
+    }
+  });
+
+  // 关闭按钮 / 遮罩点击 / Esc
+  refs.modelModalCloseBtn.addEventListener('click', closeModelModal);
+  refs.modelModalOverlay.addEventListener('click', (e) => {
+    if (e.target === refs.modelModalOverlay) closeModelModal();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && refs.modelModalOverlay.classList.contains('open')) {
+      closeModelModal();
+    }
+  });
+
+  // 从弹窗直达设置页(管理模型列表/默认思考强度)
+  refs.modelModalSettingsBtn.addEventListener('click', () => {
+    closeModelModal();
+    openSettings();
   });
 }
 
@@ -235,7 +340,8 @@ function initModelSelector() {
 function updateModeDescription() {
   const base = MODE_DESCRIPTIONS[state.currentMode] || MODE_DESCRIPTIONS.general;
   const tags = [];
-  if (state.thinkingMode) tags.push('深度思考');
+  if (state.thinkingEffort === 'max') tags.push('深度思考');
+  else if (state.thinkingEffort === 'high') tags.push('标准思考');
   if (state.searchMode) tags.push('联网搜索');
   refs.modeDescription.textContent = tags.length ? `${base}（${tags.join(' + ')}）` : base;
 }
@@ -271,7 +377,10 @@ function initModeSwitcher() {
 }
 
 /**
- * 绑定深度思考与联网搜索开关。
+ * 绑定联网搜索开关。
+ *
+ * 思考强度不再有独立按钮:与模型合并在模型弹窗的"推理等级"面板
+ * (见 renderModelModal / selectEffort,交互与 DSH 一致)。
  */
 function initFeatureToggles() {
   /**
@@ -287,14 +396,7 @@ function initFeatureToggles() {
     btn.setAttribute('aria-pressed', active ? 'true' : 'false');
   };
 
-  sync(refs.thinkingToggle, state.thinkingMode, '关闭深度思考', '深度思考模式');
   sync(refs.searchToggle, state.searchMode, '关闭联网搜索', '联网搜索');
-
-  refs.thinkingToggle.addEventListener('click', () => {
-    setThinkingMode(!state.thinkingMode);
-    sync(refs.thinkingToggle, state.thinkingMode, '关闭深度思考', '深度思考模式');
-    updateModeDescription();
-  });
 
   refs.searchToggle.addEventListener('click', () => {
     setSearchMode(!state.searchMode);
@@ -484,6 +586,18 @@ async function init() {
   });
 
   await loadModels();
+  // 应用后端配置的默认思考强度(仅当本地无记录时),刷新组合触发器
+  try {
+    const settings = await api.getSettings();
+    const item = (settings.items || []).find((i) => i.key === 'thinking_effort');
+    if (item) {
+      applyDefaultThinkingEffort(item.value);
+      updateModelSelectorLabel();
+      renderModelModal();
+    }
+  } catch (err) {
+    console.warn('读取默认思考强度失败:', err);
+  }
   refreshHistory();
 }
 

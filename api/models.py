@@ -25,7 +25,8 @@ class ChatRequest(BaseModel):
     conversation_id: Optional[str] = None
     mode: str = "general"  # general / methodology / original
     model: str = "deepseek-chat"
-    thinking_mode: bool = False
+    thinking_effort: Optional[str] = None  # off / high / max（参考 DSH 推理等级）
+    thinking_mode: bool = False            # 旧字段：True 等价 thinking_effort="high"
     search_mode: bool = False
     parent_message_id: Optional[int] = None
     regenerate_of: Optional[int] = None
@@ -124,6 +125,18 @@ class CacheClearRequest(BaseModel):
     cache_type: str = "all"  # all / answer / embedding
 
 
+class ApiTestRequest(BaseModel):
+    """API 连通性测试请求
+
+    各字段留空表示使用当前已保存的配置——因此用户可以
+    直接测"已保存的值",也可以填新值先测后保存。
+    """
+    target: str = "chat"       # chat / embed / rerank
+    api_base_url: str = ""
+    api_key: str = ""
+    model: str = ""
+
+
 class ReaderSearchRequest(BaseModel):
     """原文模糊搜索请求
 
@@ -141,3 +154,5 @@ class StatsResponse(BaseModel):
     source_files: int = 0
     cache_embeddings: int = 0
     cache_answers: int = 0
+    kb_version: str = "legacy"   # 当前知识库版本号；legacy 表示传统 rag/ 索引
+    perf: Optional[dict] = None  # 最近请求的平均耗时汇总（毫秒）

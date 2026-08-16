@@ -90,16 +90,19 @@
                 <!-- 空态欢迎屏 -->
                 <div class="welcome-container" id="welcomeContainer">
                     <div class="welcome-icon">
-                        <!-- 品牌标志。颜色全部走 currentColor，由 .welcome-icon
+                        <!-- 品牌标志(新图形版)。颜色全部走 currentColor，由 .welcome-icon
                              统一着色，暗色模式才能跟着主题变 -->
-                        <svg class="welcome-logo" viewBox="0 0 487 553" fill="none"
-                             stroke="currentColor" stroke-width="30" aria-hidden="true">
-                            <path d="M376 35L333 71C57.5 100 32.8713 274.247 38 538H409C437.5 474.5 244.5 452 267 324.5"/>
-                            <path d="M367 73L452.5 204L425.5 231.5L315.5 197"/>
-                            <path d="M332 191.895C313 217.669 268 204.782 268 180"/>
-                            <line x1="370.047" y1="45.4375" x2="368.994" y2="81.5469"/>
-                            <circle cx="369" cy="148" r="7" fill="currentColor" stroke="none"/>
-                            <path fill="currentColor" stroke="none" d="M133.251 61.5498L48.3945 28.3898C45.9507 27.4341 43.28 27.2167 40.7137 27.7645C38.1474 28.3123 35.7984 29.6012 33.9577 31.4715C32.1171 33.3417 30.8657 35.7111 30.3589 38.2858C29.8521 40.8605 30.1122 43.5273 31.1067 45.9556L65.6162 130.273C71.1214 143.717 79.3006 155.902 89.6575 166.09L384.709 456.498C395.46 467.079 409.974 472.955 425.058 472.835C440.142 472.715 454.56 466.607 465.141 455.856C475.721 445.105 481.598 430.592 481.478 415.508C481.357 400.424 475.25 386.006 464.499 375.425L169.447 84.9899C159.093 74.8064 146.779 66.8319 133.251 61.5498Z"/>
+                        <svg class="welcome-logo" viewBox="0 0 160 167" fill="none" aria-hidden="true">
+                            <line x1="30.5149" y1="60.6196" x2="120.515" y2="150.62" stroke="currentColor" stroke-width="25"/>
+                            <rect y="81.4591" width="63" height="28" transform="rotate(-44.71 0 81.4591)" fill="currentColor"/>
+                            <path d="M44.7318 37.1778L75.6406 45.6277L64.3015 57.1826L52.9154 68.454L44.7318 37.1778Z" fill="currentColor"/>
+                            <path d="M125.228 27.6456C134.279 33.6624 141.935 41.5505 147.678 50.7777C153.421 60.005 157.118 70.3567 158.52 81.1344C159.922 91.9121 158.996 102.865 155.804 113.255C152.613 123.644 147.23 133.228 140.019 141.36C132.809 149.492 123.937 155.983 114.005 160.394C104.072 164.806 93.3082 167.036 82.4402 166.934C71.5722 166.832 60.8525 164.4 51.0043 159.802C41.1562 155.204 32.4088 148.548 25.3522 140.281L40.2455 127.568C45.4839 133.704 51.9775 138.645 59.2882 142.058C66.5989 145.471 74.5565 147.277 82.6243 147.353C90.6921 147.429 98.6824 145.773 106.056 142.498C113.43 139.223 120.015 134.405 125.368 128.368C130.721 122.331 134.716 115.217 137.086 107.504C139.455 99.7918 140.142 91.6609 139.102 83.6602C138.061 75.6594 135.316 67.9749 131.053 61.1252C126.79 54.2754 121.107 48.4197 114.388 43.9532L125.228 27.6456Z" fill="currentColor"/>
+                            <circle cx="119.676" cy="35.4584" r="10" fill="currentColor"/>
+                            <rect x="95.6762" y="9.07912" width="20.661" height="33.9998" transform="rotate(-26.0677 95.6762 9.07912)" fill="currentColor"/>
+                            <path d="M102.472 80.5388C108.794 88.6241 112.837 98.2545 114.181 108.43C115.525 118.606 114.121 128.955 110.114 138.405L92.898 131.105C95.6017 124.729 96.5493 117.745 95.6425 110.878C94.7357 104.012 92.0075 97.5135 87.7412 92.0575L102.472 80.5388Z" fill="currentColor"/>
+                            <path d="M108.928 4.70515C101.17 6.14946 93.7919 9.17527 87.2536 13.5942C80.7154 18.0132 75.1567 23.7307 70.9237 30.3909L83.7565 38.5471C86.8701 33.6481 90.9589 29.4426 95.7681 26.1922C100.577 22.9418 106.004 20.7161 111.711 19.6537L108.928 4.70515Z" fill="currentColor"/>
+                            <path d="M55.4919 12.5744L88.0958 20.1747L83.8344 38.4551L28.1761 21.9584L55.4919 12.5744Z" fill="currentColor"/>
+                            <rect x="83.6761" y="56.6238" width="19" height="5" rx="2.5" transform="rotate(-25.4522 83.6761 56.6238)" fill="currentColor"/>
                         </svg>
                     </div>
                     <h1 class="welcome-title">马列通</h1>
@@ -225,11 +228,6 @@
 
                         <div class="chat-input-toolbar">
                             <div class="feature-toggles">
-                                <button class="feature-pill thinking" type="button" id="thinkingToggle"
-                                        title="深度思考模式" aria-pressed="false">
-                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
-                                    <span>深度思考</span>
-                                </button>
                                 <button class="feature-pill search" type="button" id="searchToggle"
                                         title="联网搜索" aria-pressed="false">
                                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
@@ -237,13 +235,13 @@
                                 </button>
                             </div>
 
+                            <!-- 模型与推理等级触发器(点击打开专用弹窗,见 #modelModalOverlay) -->
                             <div class="model-selector-wrapper">
                                 <div class="model-selector" id="modelSelector" tabindex="0" role="button"
-                                     aria-label="选择模型" aria-haspopup="listbox" aria-expanded="false">
+                                     aria-label="选择模型与推理等级" aria-haspopup="dialog" aria-expanded="false">
                                     <span class="model-selector-name" id="modelSelectorName">加载中...</span>
                                     <i data-lucide="chevron-down"></i>
                                 </div>
-                                <div class="model-dropdown" id="modelDropdown" role="listbox" aria-label="可用模型"></div>
                             </div>
 
                             <div class="toolbar-right">
@@ -262,6 +260,36 @@
             </div>
 
         </main>
+    </div>
+
+    <!-- ============================================
+         模型与推理等级弹窗(参考 DSH 的模型选择弹窗:
+         「模型」与「推理等级」两个面板,触发器显示组合)
+         ============================================ -->
+    <div class="model-modal-overlay" id="modelModalOverlay">
+        <div class="model-modal-panel" role="dialog" aria-modal="true" aria-labelledby="modelModalTitle">
+            <div class="model-modal-header">
+                <h3 class="model-modal-title" id="modelModalTitle">模型与推理等级</h3>
+                <button class="model-modal-close" type="button" id="modelModalCloseBtn" aria-label="关闭">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="model-modal-body">
+                <div class="model-modal-section">
+                    <div class="model-modal-section-label">模型</div>
+                    <div class="model-modal-list" id="modelModalModelList" role="listbox" aria-label="模型"></div>
+                </div>
+                <div class="model-modal-divider"></div>
+                <div class="model-modal-section">
+                    <div class="model-modal-section-label">推理等级</div>
+                    <div class="model-modal-list" id="modelModalEffortList" role="listbox" aria-label="推理等级"></div>
+                </div>
+            </div>
+            <div class="model-modal-footer">
+                <span class="model-modal-hint">模型列表可在设置页的「可选模型列表」中编辑</span>
+                <button class="model-modal-settings-btn" type="button" id="modelModalSettingsBtn">打开设置</button>
+            </div>
+        </div>
     </div>
 
     <!-- ============================================

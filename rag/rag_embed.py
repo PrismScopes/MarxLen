@@ -8,12 +8,6 @@ from openai import OpenAI
 
 from .config_store import get_config
 
-# 设置日志
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(asctime)s] [%(levelname)s] [%(module)s] %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
 logger = logging.getLogger(__name__)
 
 # 加载配置 (override=True确保优先读取.env文件)

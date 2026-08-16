@@ -25,10 +25,25 @@ class SettingsStore:
             "source_files": 0,
             "cache_embeddings": 0,
             "cache_answers": 0,
+            "kb_version": "legacy",
+            "perf": {"requests": 0},
         }
 
         if rag_pipeline is None:
             return stats
+
+        # 当前知识库版本（热切换后自动跟随新版本）
+        kb_version = getattr(rag_pipeline, "kb_build_id", None)
+        if kb_version:
+            stats["kb_version"] = kb_version
+
+        # 请求性能汇总（最近 N 次请求的平均耗时，来自 rag/telemetry）
+        try:
+            from rag.telemetry import perf_recorder
+            stats["perf"] = perf_recorder.summary()
+        except Exception as e:
+            logger.debug(f"性能统计读取失败: {e}")
+            stats["perf"] = {"requests": 0}
 
         try:
             retriever = rag_pipeline.retriever

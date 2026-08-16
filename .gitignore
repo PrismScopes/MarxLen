@@ -37,6 +37,12 @@ config.json
 # 服务端口配置（start.ps1 读取），本地状态，不入库
 port.txt
 
+# ===== 离线数据工程 =====
+# kb/ 数据工程代码入库；构建产物、发布指针与管线状态只留本地
+data/*
+!data/eval/
+!data/eval/golden.jsonl
+
 # ===== 建库原料/工具（不提交） =====
 # ww/ 本身要保留（内含放置说明），只忽略里面的语料文件，
 # 语料单独发布在 marxist-classics-markdown 仓库

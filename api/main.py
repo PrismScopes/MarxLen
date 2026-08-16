@@ -20,24 +20,58 @@ from rag.config_store import get_config
 
 config = get_config()
 
+# ── 日志:统一配置(全项目唯一入口) ─────────────────────────
+# 各业务模块内部不再调用 basicConfig(否则 import 顺序会反复重置
+# 根 logger 配置)。request_id 由 rag/telemetry.py 的过滤器注入。
 logging.basicConfig(
     level=getattr(logging, config.get("log_level"), logging.INFO),
-    format="[%(asctime)s] [%(levelname)s] [%(module)s] %(message)s",
+    format="[%(asctime)s] [%(levelname)s] [%(module)s] "
+           "[rid=%(request_id)s] %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
+try:
+    from rag.telemetry import RequestIdFilter
+    for handler in logging.getLogger().handlers:
+        handler.addFilter(RequestIdFilter())
+except Exception:
+    pass
+# 第三方库降噪
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """应用启动时初始化 RAG 引擎"""
+    """应用启动时初始化 RAG 引擎与知识库热更新监听"""
     logger.info("正在初始化 RAG 引擎...")
     pipeline = None
+    kb_watcher = None
     try:
+        # 版本化知识库:解析发布指针(data/releases.json),
+        # 尚无发布记录或解析失败时回退传统 rag/ 目录(与旧版行为一致)
+        index_dir = None
+        kb_build_id = None
+        if config.get("kb_enabled"):
+            try:
+                from kb.release import resolve_index_dir
+                index_dir, kb_build_id = resolve_index_dir()
+            except Exception as e:
+                logger.warning(f"知识库版本解析失败,回退传统目录: {e}")
+
         from rag.generator import RAGPipeline
-        pipeline = RAGPipeline()
+        pipeline = RAGPipeline(index_dir=index_dir, kb_build_id=kb_build_id)
         set_rag_pipeline(pipeline)
         logger.info("RAG 引擎初始化完成")
+
+        # 发布指针变化时,后台加载新索引并原子切换,无需重启服务
+        if config.get("kb_hot_reload"):
+            try:
+                from kb.watcher import KBVersionWatcher
+                kb_watcher = KBVersionWatcher(pipeline)
+                kb_watcher.start()
+            except Exception as e:
+                logger.warning(f"知识库热更新监听启动失败: {e}")
     except Exception as e:
         logger.error(f"RAG 引擎初始化失败: {e}")
         # 不阻止应用启动，/api/health 会报告 rag_initialized=False
@@ -56,6 +90,8 @@ async def lifespan(app: FastAPI):
             )
     yield
     # 关闭时释放所有持久化连接
+    if kb_watcher is not None:
+        kb_watcher.stop()
     conv_store.close()
     if pipeline is not None:
         try:

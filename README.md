@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="marxist-rag-ui/MarxLen2.svg" width="180" alt="MarxLen" />
+  <img src="marxist-rag-ui/MarxLen-font.svg" width="180" alt="MarxLen" />
 </p>
 <p align="center">
   <h1 align="center">MarxLen · 马列通</h1>
@@ -282,16 +282,26 @@ ww/                 原文语料（需另行下载，不在本仓库）
 ## 测试
 
 ```bash
-# 纯逻辑测试，秒级完成，不消耗 API 额度
-rag/.venv/Scripts/python tests/test_unit.py
-rag/.venv/Scripts/python tests/test_cache.py
-rag/.venv/Scripts/python tests/test_config.py
+# 一条命令跑完全部零依赖测试（本地与 CI 共用入口，秒级完成，不消耗 API 额度）
+rag/.venv/Scripts/python tests/run_all.py
 
-# 需要真实 API，耗时较长
+# 前端 ES module 语法与导入检查（需 Node.js）
+node tests/check_frontend.mjs
+
+# 也可以单独运行某个套件
+rag/.venv/Scripts/python tests/test_unit.py           # 纯逻辑
+rag/.venv/Scripts/python tests/test_cache.py          # 缓存与版本隔离
+rag/.venv/Scripts/python tests/test_config.py         # 配置中心
+rag/.venv/Scripts/python tests/test_kb_pipeline.py    # kb 数据工程管道（假嵌入，零 API）
+rag/.venv/Scripts/python tests/test_fixes.py          # 可观测性与修复专项
+
+# 需要真实 API，耗时较长（不在 CI 中运行）
 rag/.venv/Scripts/python tests/test_integration.py
 rag/.venv/Scripts/python tests/test_api.py
 rag/.venv/Scripts/python tests/test_degrade.py
 ```
+
+每次 push 与 PR 会由 GitHub Actions 自动运行零依赖测试（后端 + 前端），见 `.github/workflows/ci.yml`。
 
 ## 常见问题
 

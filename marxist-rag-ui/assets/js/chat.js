@@ -20,7 +20,7 @@ import {
   createUserMessage, createAssistantMessage, createThinkingPanel,
   createSearchRefsPanel, fillSearchRefs, createLoadingIndicator,
   updateLoadingStage, collapseLoadingStages, createStageDetail,
-  appendSources, appendMessageActions, renderAnswer,
+  appendSources, appendMessageActions, renderAnswer, showTimings,
   restoreUserMessage, enterEditMode, truncateAfter,
   setRowOriginalText, getRowOriginalText,
   createVariantSwitch, setRowMessageMeta, getRowMessageMeta,
@@ -315,6 +315,9 @@ export function createChatController(refs, callbacks) {
     let doneMeta = null;
     // 本轮用户消息的 id，编辑重发后要靠它刷新用户行的切换器
     let userMsgId = null;
+    // 后端带回的各阶段耗时与引用覆盖率报告（问题 12 / 问题 7）
+    let doneTimings = null;
+    let refReport = null;
     let lastRenderTime = 0;
     let lastRenderedLen = 0;
 
@@ -330,7 +333,7 @@ export function createChatController(refs, callbacks) {
         conversation_id: state.currentConversationId,
         mode: state.currentMode,
         model: state.currentModel,
-        thinking_mode: state.thinkingMode,
+        thinking_effort: state.thinkingEffort,
         search_mode: state.searchMode,
         // 编辑重发：新提问与旧提问成为兄弟版本
         parent_message_id: options.parentMessageId ?? null,
@@ -352,13 +355,13 @@ export function createChatController(refs, callbacks) {
           if (!muted) scrollToBottom(chatMessages);
         } else if (event === 'thinking' && data.content) {
           thinkingText += data.content;
-          if (state.thinkingMode) {
+          if (state.thinkingEffort !== 'off') {
             thinkingPanel.classList.add('visible');
             $('.thinking-process-body', thinkingPanel).textContent = thinkingText;
           }
         } else if (event === 'thinking_done') {
           clearInterval(timer);
-          if (state.thinkingMode) {
+          if (state.thinkingEffort !== 'off') {
             $('.thinking-process-label', thinkingPanel).textContent = '已深度思考';
             const icon = $('.thinking-process-icon', thinkingPanel);
             if (icon) icon.style.animation = 'none';
@@ -370,7 +373,8 @@ export function createChatController(refs, callbacks) {
           // 正文开始了，进度行收起来。但问题解构卡片留着：
           // 它说明了系统怎么理解这个问题，读完回答再回看仍有价值
           collapseLoadingStages(loading);
-          // 节流重绘：满 50ms 或积够 200 字才重新解析 Markdown
+          // 节流:重绘只追加新增的完整段落(见 renderAnswer 增量逻辑),
+          // 满 120ms 或积够 320 字才触发一次
           const now = Date.now();
           if (now - lastRenderTime > STREAM_RENDER.minIntervalMs
             || fullAnswer.length - lastRenderedLen > STREAM_RENDER.charThreshold) {
@@ -401,6 +405,8 @@ export function createChatController(refs, callbacks) {
             }
           }
           sources = data.sources || [];
+          doneTimings = data.timings || null;
+          refReport = data.ref_report || null;
           // 消息树字段：有了它们生成完就能直接渲染切换器，
           // 不必再拉一次对话详情
           doneMeta = {
@@ -439,9 +445,11 @@ export function createChatController(refs, callbacks) {
       // 节点会随 activeStream 一起被接回界面，不补的话正文会停在
       // 最后一次节流渲染的位置，来源卡片和操作按钮也不会出现
       if (fullAnswer) {
-        renderAnswer(msgText, fullAnswer, [searchPanel, thinkingPanel]);
+        // force:流结束时把最后一截没渲染的尾段一次补全
+        renderAnswer(msgText, fullAnswer, [searchPanel, thinkingPanel], true);
       }
-      if (sources.length) appendSources(assistantRow, sources);
+      if (sources.length) appendSources(assistantRow, sources, refReport);
+      showTimings(assistantRow, doneTimings);
 
       if (doneMeta) setRowMessageMeta(assistantRow, doneMeta);
       // 重新生成过的回答会有多个版本，这时才需要切换器
@@ -468,7 +476,7 @@ export function createChatController(refs, callbacks) {
       if (err.name === 'AbortError') {
         // 用户主动停止：保留已生成的部分
         if (fullAnswer) {
-          renderAnswer(msgText, fullAnswer, [searchPanel, thinkingPanel]);
+          renderAnswer(msgText, fullAnswer, [searchPanel, thinkingPanel], true);
           appendMessageActions(assistantRow, fullAnswer, () => regenerate(assistantRow));
         } else {
           msgText.innerHTML = '';

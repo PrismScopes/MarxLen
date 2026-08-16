@@ -16,8 +16,8 @@ from .cache_store import EmbeddingCache
 from .config_store import get_config
 from .bm25_tokenizer import tokenize_bm25
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
+# 日志配置由 api/main.py(在线)或 kb/cli.py(离线)统一负责,
+# 此处不调用 basicConfig,避免 import 顺序重置全局日志格式。
 load_dotenv(override=True)
 
 RAG_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -34,10 +34,33 @@ class HybridRetriever:
     """
 
     def __init__(self,
-                 faiss_path: str = FAISS_INDEX_PATH,
-                 db_path: str = DOCUMENTS_DB_PATH):
+                 faiss_path: Optional[str] = None,
+                 db_path: Optional[str] = None,
+                 index_dir: Optional[str] = None):
+        """构造混合检索器
+
+        参数:
+            index_dir: 三件套(documents.db / faiss_index.idx /
+                bm25_index.pkl)所在目录。传了则忽略 faiss_path/db_path。
+                None 表示使用传统 rag/ 运行目录(与旧行为一致)。
+            faiss_path / db_path: 兼容旧调用方式,仅 index_dir 为 None 时生效。
+        """
+        if index_dir is not None:
+            self.index_dir = index_dir
+            faiss_path = os.path.join(index_dir, "faiss_index.idx")
+            db_path = os.path.join(index_dir, "documents.db")
+        else:
+            self.index_dir = RAG_DIR
+            faiss_path = faiss_path or FAISS_INDEX_PATH
+            db_path = db_path or DOCUMENTS_DB_PATH
         self.faiss_path = faiss_path
         self.db_path = db_path
+        self.bm25_path = os.path.join(self.index_dir, "bm25_index.pkl")
+        # 知识库版本标识:index_dir 为传统目录时是 None
+        self.kb_build_id = None
+        if os.path.normcase(os.path.abspath(self.index_dir)) != \
+                os.path.normcase(os.path.abspath(RAG_DIR)):
+            self.kb_build_id = os.path.basename(os.path.abspath(self.index_dir))
         self.config = get_config()
 
         # 初始化嵌入缓存
@@ -90,6 +113,28 @@ class HybridRetriever:
         self.rerank_api_base = self.config.get("embed_api_base_url")
         self.rerank_api_key = self.config.get("embed_api_key")
         self.rerank_model = self.config.get("rerank_model")
+
+        # jieba 首次分词需要加载词典（数百毫秒到秒级），后台预热：
+        # 服务启动后立刻把词典载好，用户首次提问时不再白等这一下。
+        threading.Thread(
+            target=tokenize_bm25,
+            args=("生产力 生产关系 唯物辩证法",),
+            daemon=True,
+            name="jieba-warmup",
+        ).start()
+
+    def reconfigure(self):
+        """设置保存后的运行时重建(嵌入/重排端点与密钥保存即生效)
+
+        注意:embed_model 更换会改变向量空间,与既有索引不兼容,
+        该配置项仍在设置页标记"需重启",此处仅按新配置重建客户端。
+        """
+        self.embedder = QwenEmbedder()
+        self.rerank_api_base = self.config.get("embed_api_base_url")
+        self.rerank_api_key = self.config.get("embed_api_key")
+        self.rerank_model = self.config.get("rerank_model")
+        logging.info("嵌入器与重排配置已重建: embed_model=%s rerank_model=%s",
+                     self.embedder.model, self.rerank_model)
 
     def _verify_index_consistency(self):
         """校验 BM25 索引与 SQLite/FAISS 是否来自同一次建库
@@ -150,11 +195,11 @@ class HybridRetriever:
 
     def _load_bm25_index(self):
         """从本地磁盘加载 BM25 索引"""
-        if not os.path.exists(BM25_INDEX_PATH):
-            raise FileNotFoundError(f"找不到 BM25 索引文件 {BM25_INDEX_PATH}。请先运行 ingest_philosophy.py 进行建库！")
+        if not os.path.exists(self.bm25_path):
+            raise FileNotFoundError(f"找不到 BM25 索引文件 {self.bm25_path}。请先运行 ingest_philosophy.py 进行建库！")
 
-        logging.info(f"正在从 {BM25_INDEX_PATH} 加载 BM25 索引...")
-        with open(BM25_INDEX_PATH, 'rb') as f:
+        logging.info(f"正在从 {self.bm25_path} 加载 BM25 索引...")
+        with open(self.bm25_path, 'rb') as f:
             # 安全提示：pickle 来自本地可信数据文件，非用户/网络输入
             data = pickle.load(f)
             self.bm25 = data["bm25_index"]
@@ -326,6 +371,8 @@ class HybridRetriever:
             "documents": texts
         }
 
+        import time as _time
+        _t0 = _time.perf_counter()
         try:
             response = requests.post(url, headers=headers, json=payload,
                                      timeout=timeout)
@@ -344,6 +391,9 @@ class HybridRetriever:
                 {**documents[item["index"]].copy(), "rerank_score": item["relevance_score"]}
                 for item in results[:top_n]
             ]
+            _ms = (_time.perf_counter() - _t0) * 1000
+            logging.info("  重排完成: %d 条候选 -> %d 条 (%.0fms)",
+                         len(documents), len(ranked), _ms)
             return self._filter_by_threshold(ranked)
 
         except requests.Timeout:
@@ -445,12 +495,18 @@ class HybridRetriever:
 
         def _run(task):
             kind, idx, q, k = task
+            import time as _time
+            _t0 = _time.perf_counter()
             try:
                 if kind == "dense":
-                    return kind, idx, q, self.dense_search(q, k=k), None
-                return kind, idx, q, self.sparse_search(q, k=k), None
+                    res = self.dense_search(q, k=k)
+                else:
+                    res = self.sparse_search(q, k=k)
+                _ms = (_time.perf_counter() - _t0) * 1000
+                return kind, idx, q, res, None, _ms
             except Exception as e:
-                return kind, idx, q, None, e
+                _ms = (_time.perf_counter() - _t0) * 1000
+                return kind, idx, q, None, e, _ms
 
         # 结果要按固定顺序收集：RRF 的名次由列表内顺序决定，
         # 若按线程完成顺序拼接，同样的输入会算出不同的分数
@@ -460,12 +516,13 @@ class HybridRetriever:
             outcomes = list(executor.map(_run, tasks))
 
         channels = []
-        for kind, idx, q, res, err in outcomes:
+        for kind, idx, q, res, err, ms in outcomes:
             label = f"语义通道{idx + 1}" if kind == "dense" else "关键词通道"
             if err is not None:
-                logging.warning(f"  {label} 失败，跳过: {err}")
+                logging.warning(f"  {label} 失败，跳过 (%.0fms): {err}", ms)
                 continue
-            logging.info(f"  {label}: {len(res)} 条 | '{q[:40]}'")
+            logging.info("  %s: %d 条 (%.0fms) | '%s'",
+                         label, len(res), ms, q[:40])
             channels.append(res)
 
         if not channels:
@@ -486,6 +543,23 @@ class HybridRetriever:
         logging.info(f"Rerank 完成，返回 Top-{len(final_res)} 个结果")
 
         return final_res
+
+    def close(self):
+        """释放 SQLite 连接与嵌入缓存（知识库热切换时延迟调用）
+
+        仅在确认没有在途检索时才应调用；调用方（RAGPipeline）会在
+        新旧检索器切换后延迟一段时间再执行，保证在途请求不受影响。
+        """
+        try:
+            if getattr(self, "store", None) is not None:
+                self.store.close()
+        except Exception as e:
+            logging.warning(f"关闭向量存储失败: {e}")
+        try:
+            if getattr(self, "embed_cache", None) is not None:
+                self.embed_cache.close()
+        except Exception as e:
+            logging.warning(f"关闭嵌入缓存失败: {e}")
 
 
 if __name__ == "__main__":

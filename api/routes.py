@@ -1,4 +1,6 @@
 import os
+import time
+import uuid
 import asyncio
 import json
 import logging
@@ -16,7 +18,7 @@ from .models import (
     MessageVariants, SwitchVariantRequest,
     ModelOption, ModelUpdateRequest,
     SettingsUpdateRequest, SettingsResetRequest, CacheClearRequest,
-    StatsResponse,
+    ApiTestRequest, StatsResponse,
 )
 from .conversation_store import ConversationStore
 from .settings_store import SettingsStore
@@ -51,6 +53,16 @@ async def chat(request: ChatRequest):
     global rag_pipeline
     if rag_pipeline is None:
         raise HTTPException(status_code=503, detail="RAG 引擎尚未初始化")
+
+    # 请求关联 ID:贯穿本请求全部日志,SSE 首帧带给前端
+    request_id = uuid.uuid4().hex[:12]
+    # 思考强度:优先新字段 thinking_effort;旧 thinking_mode=True 等价 high
+    effort = request.thinking_effort
+    if effort not in ("off", "high", "max"):
+        effort = "high" if request.thinking_mode else "off"
+    logger.info("收到提问 [question=%.40s...] [mode=%s effort=%s search=%s]",
+                request.question, request.mode, effort,
+                request.search_mode)
 
     # 1. 对话管理
     conv_id = request.conversation_id
@@ -116,11 +128,21 @@ async def chat(request: ChatRequest):
     async def event_generator():
         """SSE 事件生成器"""
         try:
+            from rag.telemetry import set_request_id, perf_recorder
+            set_request_id(request_id)   # 协程侧日志带 request_id
             full_answer = ""
             thinking_content = ""
             sources_data = []
             search_refs = []
             thinking_done_sent = False
+            done_timings = None
+            done_ref_report = None
+
+            # 首帧即带回 request_id:前端可据此把日志与本次会话对应起来
+            yield {
+                "event": "meta",
+                "data": json.dumps({"request_id": request_id}, ensure_ascii=False),
+            }
 
             # 调用 RAG 流式接口（在线程中运行同步生成器，避免阻塞事件循环）
             fetch_k = int(config.get("fetch_k"))
@@ -130,14 +152,17 @@ async def chat(request: ChatRequest):
             queue = asyncio.Queue(maxsize=int(config.get("stream_queue_size")))
 
             def run_generator():
+                from rag.telemetry import set_request_id as _set_rid
+                _set_rid(request_id)     # 生成线程侧日志带 request_id
                 try:
                     for item in rag_pipeline.ask_stream(
                         question=request.question,
                         top_k=top_k,
                         fetch_k=fetch_k,
-                        thinking_mode=request.thinking_mode,
+                        thinking_effort=effort,
                         history=history,
                         search_mode=request.search_mode,
+                        request_id=request_id,
                     ):
                         fut = asyncio.run_coroutine_threadsafe(queue.put(item), loop)
                         try:
@@ -164,6 +189,8 @@ async def chat(request: ChatRequest):
                     if item["type"] == "done":
                         sources_data = item.get("sources", [])
                         search_refs = item.get("search_refs", [])
+                        done_timings = item.get("timings") or {}
+                        done_ref_report = item.get("ref_report") or {}
                         break
                     elif item["type"] == "error":
                         raise Exception(item.get("detail", "未知错误"))
@@ -177,6 +204,7 @@ async def chat(request: ChatRequest):
                                 "status": item.get("status", "running"),
                                 "text": item.get("text", ""),
                                 "detail": item.get("detail"),
+                                "elapsed_ms": item.get("elapsed_ms"),
                             }, ensure_ascii=False),
                         }
                     elif item["type"] == "search_result":
@@ -230,18 +258,38 @@ async def chat(request: ChatRequest):
 
             # 发送完成事件（含来源、联网搜索结果、conversation_id）
             # message_id / variant_* 让前端立刻能渲染版本切换器，
-            # 不必再多请求一次对话详情
+            # 不必再多请求一次对话详情。
+            # timings 为本次请求各阶段耗时（总耗时/解构/检索/首 token/生成），
+            # ref_report 为引用后处理的覆盖统计。
+            try:
+                from rag.telemetry import perf_recorder
+                if done_timings:
+                    perf_recorder.record(done_timings)
+            except Exception:
+                pass
+            logger.info("请求完成 [total=%.0fms analyze=%.0fms retrieve=%.0fms "
+                        "first_token=%.0fms generate=%.0fms] [字数=%d]",
+                        done_timings.get("total_ms", 0),
+                        done_timings.get("analyze_ms", 0),
+                        done_timings.get("retrieve_ms", 0),
+                        done_timings.get("first_token_ms", 0),
+                        done_timings.get("generate_ms", 0),
+                        len(full_answer))
+
             yield {
                 "event": "done",
                 "data": json.dumps({
                     "conversation_id": conv_id,
                     "sources": [s.model_dump() for s in source_items],
                     "references": search_refs,
-                    "thinking_content": thinking_content if request.thinking_mode else "",
+                    "thinking_content": thinking_content if effort != "off" else "",
                     "message_id": assistant_msg.id,
                     "user_message_id": user_msg_id,
                     "variant_count": assistant_msg.variant_count,
                     "variant_index": assistant_msg.variant_index,
+                    "request_id": request_id,
+                    "timings": done_timings,
+                    "ref_report": done_ref_report,
                 }, ensure_ascii=False),
             }
 
@@ -497,6 +545,10 @@ def _apply_runtime_settings(updates: dict):
 
     只有那些在初始化时被读取、之后不再重新读取的值才需要在此同步。
     top_k / fetch_k 等在每次请求时都会重新读配置，无需处理。
+
+    密钥与端点变化时重建客户端（reconfigure），实现"保存即生效"，
+    与 DSH 的配置热更新体验一致；embed_model 例外——换嵌入模型
+    会改变向量空间，必须重建索引，仍需重启。
     """
     if rag_pipeline is None:
         return
@@ -513,6 +565,12 @@ def _apply_runtime_settings(updates: dict):
             new_model = config.get("model")
             rag_pipeline.model_name = new_model
             rag_pipeline.llm.model_name = new_model
+        # 端点/密钥/重排模型:重建客户端,保存即生效
+        if any(k in updates for k in (
+                "api_key", "api_base_url", "embed_api_key",
+                "embed_api_base_url", "rerank_model",
+                "embed_timeout", "embed_max_retries")):
+            rag_pipeline.reconfigure()
         if "reader_corpus_dir" in updates:
             # 换了语料目录，旧正文缓存全部失效
             from api.reader import clear_cache as clear_reader_cache
@@ -520,6 +578,115 @@ def _apply_runtime_settings(updates: dict):
     except Exception as e:
         # 同步失败不应让整个请求失败，配置本身已保存成功
         logger.warning(f"运行时设置同步失败（重启后仍会生效）: {e}")
+
+
+# ================================================================
+# 9c. POST /api/settings/test-api - API 连通性测试
+# ================================================================
+
+# 错误分类:把 openai 库的异常翻译成用户能看懂的一句话
+def _classify_api_error(e: Exception) -> str:
+    try:
+        from openai import (
+            AuthenticationError, NotFoundError, APITimeoutError,
+            APIConnectionError, PermissionDeniedError, RateLimitError,
+        )
+        if isinstance(e, AuthenticationError):
+            return "密钥无效(401),请检查 API Key"
+        if isinstance(e, PermissionDeniedError):
+            return "无权限(403),该密钥可能没有访问此模型的权限"
+        if isinstance(e, RateLimitError):
+            return "触发限流(429),稍后重试或检查额度"
+        if isinstance(e, NotFoundError):
+            return "端点或资源不存在(404),请检查 API 地址与模型名"
+        if isinstance(e, APITimeoutError):
+            return "请求超时,请检查网络或换更快的服务商"
+        if isinstance(e, APIConnectionError):
+            return "无法连接,请检查 API 地址与网络"
+    except ImportError:
+        pass
+    return str(e)[:200]
+
+
+@router.post("/settings/test-api")
+async def test_api(req: ApiTestRequest):
+    """测试 API 连通性(可用未保存的输入值,先测后存)
+
+    target:
+      chat   - 拉取模型列表,验证密钥与端点(不产生生成费用)
+      embed  - 嵌入一小段文本,返回向量维度
+      rerank - 重排两条文档,验证重排服务
+    """
+    if req.target not in ("chat", "embed", "rerank"):
+        raise HTTPException(status_code=400, detail="未知测试目标")
+
+    # 显式传值优先,留空则用已保存配置。
+    # 注意:embed/rerank 与 chat 使用两套独立的端点与密钥,
+    # 回退时必须各回退各的,否则会拿对话 Key 去访问嵌入服务(401)。
+    if req.target == "chat":
+        base_url = (req.api_base_url or "").strip() or config.get("api_base_url")
+        api_key = (req.api_key or "").strip() or config.get("api_key")
+    else:
+        base_url = (req.api_base_url or "").strip() \
+            or config.get("embed_api_base_url")
+        api_key = (req.api_key or "").strip() or config.get("embed_api_key")
+
+    t0 = time.perf_counter()
+    try:
+        if req.target == "chat":
+            from openai import OpenAI
+            client = OpenAI(api_key=api_key, base_url=base_url,
+                            timeout=15, max_retries=0)
+            models = client.models.list()
+            ids = [m.id for m in models.data[:30]]
+            ms = (time.perf_counter() - t0) * 1000
+            return {
+                "ok": True, "latency_ms": round(ms, 1),
+                "detail": f"连接正常,可见 {len(ids)} 个模型",
+                "models": ids,
+            }
+
+        if req.target == "embed":
+            from openai import OpenAI
+            model = req.model.strip() or config.get("embed_model")
+            client = OpenAI(api_key=api_key, base_url=base_url,
+                            timeout=20, max_retries=0)
+            resp = client.embeddings.create(model=model, input=["连接测试"])
+            dim = len(resp.data[0].embedding)
+            ms = (time.perf_counter() - t0) * 1000
+            return {
+                "ok": True, "latency_ms": round(ms, 1),
+                "detail": f"嵌入成功,向量维度 {dim}",
+                "embedding_dim": dim,
+            }
+
+        # rerank:不是 OpenAI 标准接口,按服务商 /rerank 约定调用
+        import requests
+        model = req.model.strip() or config.get("rerank_model")
+        url = base_url.rstrip("/") + "/rerank"
+        resp = requests.post(
+            url,
+            headers={"Authorization": f"Bearer {api_key}",
+                     "Content-Type": "application/json"},
+            json={"model": model, "query": "连接测试",
+                  "documents": ["文档一", "文档二"]},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        n = len(resp.json().get("results", []))
+        ms = (time.perf_counter() - t0) * 1000
+        return {
+            "ok": True, "latency_ms": round(ms, 1),
+            "detail": f"重排成功,返回 {n} 条结果",
+        }
+
+    except Exception as e:
+        ms = (time.perf_counter() - t0) * 1000
+        logger.warning(f"API 测试失败 [{req.target}]: {e}")
+        return {
+            "ok": False, "latency_ms": round(ms, 1),
+            "detail": _classify_api_error(e),
+        }
 
 
 # ================================================================

@@ -256,6 +256,250 @@ function renderCategoryItems(items, onChange, modelOptions) {
   return frag;
 }
 
+// ======================================================================
+// "接口"分类定制:服务商预设 + API 连通性测试
+// ======================================================================
+
+/**
+ * 服务商预设。任何 OpenAI 兼容服务都可用于对话模型;
+ * 嵌入/重排需要服务商额外提供对应模型。
+ */
+const PROVIDERS = [
+  {
+    id: 'deepseek', name: 'DeepSeek',
+    base: 'https://api.deepseek.com/v1',
+    chat: true, embed: false, rerank: false, thinking: true,
+    note: '对话模型最全且支持思考强度;无嵌入/重排服务,嵌入与重排需另配(如硅基流动)',
+  },
+  {
+    id: 'siliconflow', name: '硅基流动 SiliconFlow',
+    base: 'https://api.siliconflow.cn/v1',
+    chat: true, embed: true, rerank: true, thinking: false,
+    note: '对话 + 嵌入 + 重排一家配齐;嵌入模型用 Qwen3-Embedding-0.6B',
+  },
+  {
+    id: 'openai', name: 'OpenAI',
+    base: 'https://api.openai.com/v1',
+    chat: true, embed: true, rerank: false, thinking: false,
+    note: '标准 OpenAI;无 rerank 服务,思考强度取决于所用模型是否支持',
+  },
+  {
+    id: 'qwen', name: '通义千问(阿里云百炼)',
+    base: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    chat: true, embed: true, rerank: true, thinking: false,
+    note: '需用兼容模式地址;嵌入用 text-embedding 系,重排用 gte-rerank',
+  },
+  {
+    id: 'kimi', name: 'Kimi(Moonshot)',
+    base: 'https://api.moonshot.cn/v1',
+    chat: true, embed: false, rerank: false, thinking: false,
+    note: '仅对话;无嵌入/重排服务',
+  },
+  {
+    id: 'zhipu', name: '智谱 GLM',
+    base: 'https://open.bigmodel.cn/api/paas/v4',
+    chat: true, embed: true, rerank: false, thinking: false,
+    note: '对话 + 嵌入;无 rerank 服务',
+  },
+  {
+    id: 'vllm', name: '本地 vLLM / Ollama',
+    base: 'http://localhost:8000/v1',
+    chat: true, embed: true, rerank: false, thinking: false,
+    note: '自托管;Ollama 请使用其 /v1 兼容端点,嵌入模型需自行部署',
+  },
+];
+
+/** 服务商预设卡:选服务商 → 一键填入兼容地址 */
+function renderProviderCard(onChange) {
+  const card = document.createElement('div');
+  card.className = 'settings-provider-card';
+
+  const head = document.createElement('div');
+  head.className = 'settings-provider-head';
+  const title = document.createElement('span');
+  title.className = 'settings-group-title';
+  title.textContent = '服务商预设';
+  const hint = document.createElement('span');
+  hint.className = 'settings-provider-hint';
+  hint.textContent = '一键填入兼容地址,填入后请补填各自的 API Key';
+  head.append(title, hint);
+  card.appendChild(head);
+
+  const row = document.createElement('div');
+  row.className = 'settings-provider-row';
+
+  const select = document.createElement('select');
+  select.className = 'settings-select';
+  PROVIDERS.forEach((p) => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.name;
+    select.appendChild(opt);
+  });
+  row.appendChild(select);
+
+  const apply = document.createElement('button');
+  apply.type = 'button';
+  apply.className = 'settings-action-btn';
+  apply.textContent = '应用预设';
+  row.appendChild(apply);
+  card.appendChild(row);
+
+  const info = document.createElement('div');
+  info.className = 'settings-provider-info';
+
+  const badges = document.createElement('div');
+  badges.className = 'settings-provider-badges';
+
+  const renderInfo = () => {
+    const p = PROVIDERS.find((x) => x.id === select.value) || PROVIDERS[0];
+    badges.textContent = '';
+    [['chat', '对话'], ['embed', '嵌入'], ['rerank', '重排'],
+     ['thinking', '思考强度']].forEach(([field, label]) => {
+      const b = document.createElement('span');
+      b.className = 'settings-provider-badge '
+        + (p[field] ? 'yes' : 'no');
+      b.textContent = `${label}${p[field] ? ' ✓' : ' ✗'}`;
+      badges.appendChild(b);
+    });
+    note.textContent = p.note || '';
+  };
+  const note = document.createElement('div');
+  note.className = 'settings-provider-note';
+  info.append(badges, note);
+  card.appendChild(info);
+
+  select.addEventListener('change', renderInfo);
+
+  apply.addEventListener('click', () => {
+    const p = PROVIDERS.find((x) => x.id === select.value) || PROVIDERS[0];
+    // 填入对话 API 地址;提供嵌入服务时同时填嵌入地址
+    const chatInput = document.getElementById('setting-api_base_url');
+    if (chatInput) {
+      chatInput.value = p.base;
+      onChange('api_base_url', p.base);
+    }
+    if (p.embed) {
+      const embedInput = document.getElementById('setting-embed_api_base_url');
+      if (embedInput) {
+        embedInput.value = p.base;
+        onChange('embed_api_base_url', p.base);
+      }
+    }
+    apply.textContent = '已应用';
+    setTimeout(() => { apply.textContent = '应用预设'; }, 1500);
+  });
+
+  renderInfo();
+  return card;
+}
+
+/** 读取输入框当前值(空则返回 '',由后端回退到已保存配置) */
+function readControlValue(key) {
+  const el = document.getElementById('setting-' + key);
+  return el && el.value ? el.value.trim() : '';
+}
+
+/** 测试按钮 + 结果行 */
+function createTestRow(label, onTest) {
+  const wrap = document.createElement('div');
+  wrap.className = 'settings-test-row';
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'settings-test-btn';
+  btn.textContent = label;
+
+  const result = document.createElement('span');
+  result.className = 'settings-test-result';
+
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    result.className = 'settings-test-result';
+    result.textContent = '测试中...';
+    try {
+      const r = await onTest();
+      result.className = 'settings-test-result ' + (r.ok ? 'ok' : 'fail');
+      result.textContent = r.ok
+        ? `✓ ${r.latency_ms}ms · ${r.detail}`
+        : `✗ ${r.detail}`;
+    } catch (err) {
+      result.className = 'settings-test-result fail';
+      result.textContent = '✗ ' + err.message;
+    }
+    btn.disabled = false;
+  });
+
+  wrap.append(btn, result);
+  return wrap;
+}
+
+/** 组标题 + 内容块 */
+function renderGroup(titleText, children) {
+  const box = document.createElement('div');
+  box.className = 'settings-group';
+  const title = document.createElement('div');
+  title.className = 'settings-group-title';
+  title.textContent = titleText;
+  box.appendChild(title);
+  children.forEach((c) => box.appendChild(c));
+  return box;
+}
+
+/**
+ * "接口"分类的定制渲染:预设卡 + 分组 + 测试按钮。
+ */
+function renderApiCategory(items, onChange, modelOptions) {
+  const byKey = {};
+  items.forEach((i) => { byKey[i.key] = i; });
+  const frag = document.createDocumentFragment();
+
+  frag.appendChild(renderProviderCard(onChange));
+
+  // ── 对话模型 API ──
+  const chatGroup = ['api_base_url', 'api_key', 'model']
+    .filter((k) => byKey[k])
+    .map((k) => createSettingItem(byKey[k], onChange, modelOptions));
+  chatGroup.push(createTestRow('测试对话 API', () => api.testApi({
+    target: 'chat',
+    api_base_url: readControlValue('api_base_url'),
+    api_key: readControlValue('api_key'),
+  })));
+  frag.appendChild(renderGroup('对话模型 API', chatGroup));
+
+  // ── 嵌入 / 重排 API ──
+  const embedKeys = ['embed_api_base_url', 'embed_api_key',
+    'embed_model', 'rerank_model'];
+  const embedGroup = embedKeys
+    .filter((k) => byKey[k])
+    .map((k) => createSettingItem(byKey[k], onChange, modelOptions));
+  embedGroup.push(createTestRow('测试嵌入', () => api.testApi({
+    target: 'embed',
+    api_base_url: readControlValue('embed_api_base_url'),
+    api_key: readControlValue('embed_api_key'),
+    model: readControlValue('embed_model'),
+  })));
+  embedGroup.push(createTestRow('测试重排', () => api.testApi({
+    target: 'rerank',
+    api_base_url: readControlValue('embed_api_base_url'),
+    api_key: readControlValue('embed_api_key'),
+    model: readControlValue('rerank_model'),
+  })));
+  frag.appendChild(renderGroup('嵌入 / 重排 API', embedGroup));
+
+  // ── 其余项(超时、模型列表等) ──
+  const GROUPED_KEYS = new Set(['api_base_url', 'api_key', 'model',
+    'embed_api_base_url', 'embed_api_key',
+    'embed_model', 'rerank_model']);
+  const rest = items.filter((i) => !GROUPED_KEYS.has(i.key));
+  if (rest.length) {
+    const restFrag = renderCategoryItems(rest, onChange, modelOptions);
+    frag.appendChild(restFrag);
+  }
+
+  return frag;
+}
+
 /**
  * 渲染"存储"分类：知识库统计 + 缓存清理。
  * @param {Function} onClearCache - 清理缓存回调
@@ -322,6 +566,7 @@ async function loadStats() {
     const s = await api.getStats();
     el.textContent = '';
     const rows = [
+      ['知识库版本', s.kb_version || 'legacy'],
       ['文档', s.document_count],
       ['向量', s.vector_count],
       ['源文件', s.source_files],
@@ -336,10 +581,36 @@ async function loadStats() {
       k.textContent = label;
       const v = document.createElement('span');
       v.className = 'settings-stat-value';
-      v.textContent = Number(value).toLocaleString('zh-CN');
+      v.textContent = typeof value === 'number'
+        ? Number(value).toLocaleString('zh-CN')
+        : String(value ?? '');
       row.append(k, v);
       el.appendChild(row);
     });
+
+    // 请求性能汇总（最近 N 次请求的平均耗时，问题 12）
+    const perf = s.perf || {};
+    if (perf.requests) {
+      const fmt = (ms) => (ms >= 1000 ? (ms / 1000).toFixed(1) + 's'
+        : Math.round(ms) + 'ms');
+      const perfParts = [];
+      if (perf.avg_analyze_ms != null) perfParts.push(`解构 ${fmt(perf.avg_analyze_ms)}`);
+      if (perf.avg_retrieve_ms != null) perfParts.push(`检索 ${fmt(perf.avg_retrieve_ms)}`);
+      if (perf.avg_first_token_ms != null) perfParts.push(`首字 ${fmt(perf.avg_first_token_ms)}`);
+      if (perf.avg_generate_ms != null) perfParts.push(`生成 ${fmt(perf.avg_generate_ms)}`);
+      if (perf.avg_total_ms != null) perfParts.push(`总计 ${fmt(perf.avg_total_ms)}`);
+
+      const perfRow = document.createElement('div');
+      perfRow.className = 'settings-stat-row';
+      const pk = document.createElement('span');
+      pk.className = 'settings-stat-label';
+      pk.textContent = `平均耗时（近 ${perf.requests} 次）`;
+      const pv = document.createElement('span');
+      pv.className = 'settings-stat-value';
+      pv.textContent = perfParts.join(' · ') || '暂无数据';
+      perfRow.append(pk, pv);
+      el.appendChild(perfRow);
+    }
   } catch (err) {
     el.textContent = '统计加载失败: ' + err.message;
   }
@@ -467,6 +738,9 @@ export async function loadSettings(refs, onModelChange, modelOptions = []) {
       loadStats();
     } else if (category.id === '__about__') {
       body.appendChild(renderAbout());
+    } else if (category.id === 'api') {
+      // 接口分类定制:服务商预设 + API 测试
+      body.appendChild(renderApiCategory(grouped[category.id], handleChange, modelOptions));
     } else {
       body.appendChild(renderCategoryItems(grouped[category.id], handleChange, modelOptions));
     }

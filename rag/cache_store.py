@@ -113,11 +113,18 @@ class EmbeddingCache:
 
 
 class AnswerCache:
-    """LLM 回答缓存：query -> (answer, sources)
+    """LLM 回答缓存：query + kb_version -> (answer, sources)
 
     连同来源一起缓存。若只缓存正文，命中时来源列表会变成空，
     而回答里仍带着"参考自《xxx》"的行内引用，造成前端来源卡片与正文不一致。
+
+    按知识库版本隔离（kb_version 列）：知识库热更新后，旧版本的
+    缓存回答不会命中新版本——否则相同问题会返回基于旧语料的答案，
+    与"活水更新"的预期直接矛盾。旧数据在升级时统一归入 legacy
+    版本，保持升级前的命中行为不变。
     """
+
+    LEGACY_KB = "legacy"
 
     def __init__(self, db_path: str = ANSWER_CACHE_PATH, max_entries: Optional[int] = None):
         self.db_path = db_path
@@ -131,36 +138,84 @@ class AnswerCache:
     def _init_db(self):
         self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self._conn.execute("PRAGMA journal_mode=WAL")
+        # 新库直接建最终结构:主键 (query_hash, kb_version),
+        # 同一问题在不同知识库版本下各占一条缓存
         self._conn.execute("""
             CREATE TABLE IF NOT EXISTS answer_cache (
-                query_hash TEXT PRIMARY KEY,
+                query_hash TEXT NOT NULL,
                 query_text TEXT NOT NULL,
-                answer TEXT NOT NULL,
-                created_at REAL NOT NULL
+                answer     TEXT NOT NULL,
+                sources    TEXT,
+                kb_version TEXT NOT NULL DEFAULT 'legacy',
+                created_at REAL NOT NULL,
+                PRIMARY KEY (query_hash, kb_version)
             )
         """)
-        # 兼容旧版缓存库：sources 列是后加的，已存在的库需要补列。
-        # 旧记录该列为 NULL，读取时按空列表处理。
-        cols = {r[1] for r in self._conn.execute("PRAGMA table_info(answer_cache)")}
+
+        # ── 旧库迁移(分步,任何一步只执行一次) ──
+        cols = {r[1] for r in self._conn.execute(
+            "PRAGMA table_info(answer_cache)")}
         if "sources" not in cols:
-            self._conn.execute("ALTER TABLE answer_cache ADD COLUMN sources TEXT")
+            self._conn.execute(
+                "ALTER TABLE answer_cache ADD COLUMN sources TEXT")
             logger.info("回答缓存已升级：新增 sources 列")
+        if "kb_version" not in cols:
+            self._conn.execute(
+                "ALTER TABLE answer_cache ADD COLUMN kb_version "
+                "TEXT NOT NULL DEFAULT ''")
+            self._conn.execute(
+                "UPDATE answer_cache SET kb_version = ? WHERE kb_version = ''",
+                (self.LEGACY_KB,))
+            logger.info("回答缓存已升级：新增 kb_version 列（旧数据归入 legacy）")
+
+        # 旧主键只有 query_hash：同一问题换个知识库版本会互相覆盖，
+        # 重建为复合主键（同名旧行保留，升级后同问题可多版本并存）
+        create_sql = self._conn.execute(
+            "SELECT sql FROM sqlite_master "
+            "WHERE type='table' AND name='answer_cache'"
+        ).fetchone()[0]
+        if "PRIMARY KEY (query_hash, kb_version)" not in create_sql:
+            self._conn.execute(
+                "ALTER TABLE answer_cache RENAME TO answer_cache_old")
+            self._conn.execute("""
+                CREATE TABLE answer_cache (
+                    query_hash TEXT NOT NULL,
+                    query_text TEXT NOT NULL,
+                    answer     TEXT NOT NULL,
+                    sources    TEXT,
+                    kb_version TEXT NOT NULL DEFAULT 'legacy',
+                    created_at REAL NOT NULL,
+                    PRIMARY KEY (query_hash, kb_version)
+                )
+            """)
+            self._conn.execute(
+                "INSERT OR IGNORE INTO answer_cache "
+                "(query_hash, query_text, answer, sources, kb_version, created_at) "
+                "SELECT query_hash, query_text, answer, sources, kb_version, "
+                "created_at FROM answer_cache_old")
+            self._conn.execute("DROP TABLE answer_cache_old")
+            logger.info("回答缓存已升级：主键改为 (query_hash, kb_version)")
         self._conn.commit()
 
     def _query_hash(self, text: str) -> str:
         import hashlib
         return hashlib.md5(text.encode('utf-8')[:500]).hexdigest()
 
-    def get(self, query: str) -> Optional[tuple]:
-        """命中返回 (answer, sources)，未命中返回 None"""
+    def get(self, query: str, kb_version: str = LEGACY_KB) -> Optional[tuple]:
+        """命中返回 (answer, sources)，未命中返回 None
+
+        kb_version: 知识库版本。旧数据与旧服务默认 legacy，
+        新版本知识库只有同版本的缓存才命中。
+        """
         qh = self._query_hash(query)
         with self._lock:
             row = self._conn.execute(
-                "SELECT answer, sources FROM answer_cache WHERE query_hash = ? AND query_text = ?",
-                (qh, query)
+                "SELECT answer, sources FROM answer_cache "
+                "WHERE query_hash = ? AND query_text = ? AND kb_version = ?",
+                (qh, query, kb_version)
             ).fetchone()
         if row:
-            logger.info(f"[缓存命中] 回答: '{query[:30]}...'")
+            logger.info(f"[缓存命中] 回答: '{query[:30]}...' (kb={kb_version})")
             sources = []
             if row[1]:
                 try:
@@ -173,15 +228,17 @@ class AnswerCache:
             return row[0], sources
         return None
 
-    def put(self, query: str, answer: str, sources: Optional[List[Dict]] = None):
+    def put(self, query: str, answer: str, sources: Optional[List[Dict]] = None,
+            kb_version: str = LEGACY_KB):
         self._evict_if_needed()
         qh = self._query_hash(query)
         sources_json = json.dumps(sources or [], ensure_ascii=False)
         with self._lock:
             self._conn.execute(
                 "INSERT OR REPLACE INTO answer_cache "
-                "(query_hash, query_text, answer, sources, created_at) VALUES (?, ?, ?, ?, ?)",
-                (qh, query, answer, sources_json, time.time())
+                "(query_hash, query_text, answer, sources, kb_version, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (qh, query, answer, sources_json, kb_version, time.time())
             )
             self._conn.commit()
 

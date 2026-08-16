@@ -10,8 +10,8 @@ export const API_BASE = '/api';
 
 /** localStorage 键名清单 */
 export const STORAGE_KEYS = {
-  /** 深度思考开关（"true" / "false"） */
-  thinkingMode: 'thinking_mode',
+  /** 思考强度（"off" / "high" / "max"，参考 DSH 推理等级） */
+  thinkingEffort: 'thinking_effort',
   /** 联网搜索开关（"true" / "false"） */
   searchMode: 'search_mode',
   /** 界面主题（"light" / "dark" / "auto"） */
@@ -30,10 +30,11 @@ export const STORAGE_KEYS = {
 
 /** 流式渲染节流参数 */
 export const STREAM_RENDER = {
-  /** 两次 Markdown 重绘的最小间隔（毫秒） */
-  minIntervalMs: 50,
+  /** 两次 Markdown 重绘的最小间隔（毫秒）。
+   *  增量渲染落地后可以放宽间隔：重绘只追加新段落而非全文 */
+  minIntervalMs: 120,
   /** 累积多少个字符就强制重绘一次（应对高速流） */
-  charThreshold: 200,
+  charThreshold: 320,
 };
 
 /** 三种问答模式的说明文案，显示在输入框上方 */

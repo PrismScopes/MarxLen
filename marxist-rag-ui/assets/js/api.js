@@ -201,6 +201,15 @@ export function clearCache(cacheType) {
   return request('/settings/cache/clear', jsonBody('POST', { cache_type: cacheType }));
 }
 
+/**
+ * 测试 API 连通性（可用未保存的输入值，先测后存）。
+ * @param {Object} payload - { target, api_base_url, api_key, model }
+ * @returns {Promise<Object>} - { ok, latency_ms, detail, models?, embedding_dim? }
+ */
+export function testApi(payload) {
+  return request('/settings/test-api', jsonBody('POST', payload));
+}
+
 // ── 原文阅读器 ──────────────────────────────────────────────
 
 /**

@@ -197,9 +197,16 @@ CONFIG_SCHEMA: List[ConfigItem] = [
         min=0.0, max=1.0, step=0.05, advanced=True,
     ),
     ConfigItem(
-        key="thinking_default", type="boolean", default=False,
-        label="默认开启深度思考", category="model",
-        description="新对话是否默认启用推理模式（需模型支持）",
+        key="thinking_effort", type="select", default="off",
+        label="默认思考强度", category="model",
+        options=[
+            {"value": "off", "label": "关闭（秒回）"},
+            {"value": "high", "label": "标准思考"},
+            {"value": "max", "label": "深度思考"},
+        ],
+        description="新对话默认的推理强度。off 不启用推理模型思考；"
+                    "high / max 映射为 DeepSeek 的 reasoning_effort，"
+                    "思考越深耗时越长，需推理模型支持",
     ),
 
     # ── 检索 ────────────────────────────────────────────────
@@ -386,40 +393,40 @@ CONFIG_SCHEMA: List[ConfigItem] = [
     ConfigItem(
         key="api_base_url", type="text", default="https://api.deepseek.com/v1",
         label="对话模型 API 地址", category="api",
-        description="兼容 OpenAI 格式的端点地址",
+        description="兼容 OpenAI 格式的端点地址。保存后立即生效",
         store="env", env_key="OPENAI_API_BASE_URL",
         env_aliases=["DEEPSEEK_API_BASE_URL"],
     ),
     ConfigItem(
         key="api_key", type="password", default="",
         label="对话模型 API Key", category="api",
-        description="留空表示不修改，沿用 .env 中已配置的值",
+        description="留空表示不修改，沿用 .env 中已配置的值。保存后立即生效",
         store="env", env_key="OPENAI_API_KEY",
         env_aliases=["DEEPSEEK_API_KEY"], secret=True,
     ),
     ConfigItem(
         key="embed_api_base_url", type="text", default="https://api2.aigcbest.top/v1",
         label="嵌入/重排 API 地址", category="api",
-        description="Embedding 与 Rerank 共用的端点地址",
+        description="Embedding 与 Rerank 共用的端点地址。保存后立即生效",
         store="env", env_key="EMBED_API_BASE_URL",
     ),
     ConfigItem(
         key="embed_api_key", type="password", default="",
         label="嵌入/重排 API Key", category="api",
-        description="留空表示不修改，沿用 .env 中已配置的值",
+        description="留空表示不修改，沿用 .env 中已配置的值。保存后立即生效",
         store="env", env_key="EMBED_API_KEY", env_aliases=["RERANK_API_KEY"],
         secret=True,
     ),
     ConfigItem(
         key="embed_model", type="text", default="Qwen/Qwen3-Embedding-0.6B",
         label="嵌入模型", category="api",
-        description="更换后必须重建索引，否则向量维度不匹配",
+        description="更换后必须重建索引，否则向量维度不匹配（需重启服务）",
         store="env", env_key="EMBED_MODEL", requires_restart=True,
     ),
     ConfigItem(
         key="rerank_model", type="text", default="Qwen/Qwen3-Reranker-4B",
         label="重排模型", category="api",
-        description="用于精排候选文档的 Rerank 模型",
+        description="用于精排候选文档的 Rerank 模型。保存后立即生效",
         store="env", env_key="RERANK_MODEL",
     ),
     ConfigItem(
@@ -432,13 +439,13 @@ CONFIG_SCHEMA: List[ConfigItem] = [
     ConfigItem(
         key="embed_timeout", type="int", default=60,
         label="嵌入超时", category="api", unit="秒",
-        description="单次嵌入请求的读取超时",
+        description="单次嵌入请求的读取超时。保存后立即生效",
         min=5, max=300, step=5, advanced=True,
     ),
     ConfigItem(
         key="embed_max_retries", type="int", default=3,
         label="嵌入重试次数", category="api", unit="次",
-        description="嵌入请求失败后的自动重试次数",
+        description="嵌入请求失败后的自动重试次数。保存后立即生效",
         min=0, max=10, step=1, advanced=True,
     ),
     ConfigItem(
@@ -512,6 +519,26 @@ CONFIG_SCHEMA: List[ConfigItem] = [
         label="模糊搜索结果数", category="retrieval", unit="条",
         description="阅读器模糊搜索返回多少条候选片段",
         min=3, max=30, step=1,
+    ),
+
+    # ── 知识库版本管理（离线数据工程） ─────────────────────
+    ConfigItem(
+        key="kb_enabled", type="boolean", default=True,
+        label="启用版本化知识库", category="server",
+        description="启动时从 data/releases.json 解析当前知识库版本。"
+                    "尚无发布记录时自动回退到 rag/ 目录的传统索引",
+    ),
+    ConfigItem(
+        key="kb_hot_reload", type="boolean", default=True,
+        label="知识库热更新", category="server",
+        description="检测到新版本发布后，后台加载新索引并原子切换，"
+                    "无需重启服务",
+    ),
+    ConfigItem(
+        key="kb_builds_keep", type="int", default=3,
+        label="保留构建版本数", category="server", unit="个",
+        description="kb gc 清理时保留最近多少个构建目录",
+        min=1, max=20, step=1,
     ),
 ]
 

@@ -389,7 +389,14 @@ export function updateLoadingStage(el, data) {
   const icon = $('.thinking-step-icon', row);
   if (icon) icon.innerHTML = STAGE_ICONS[data.status] || STAGE_ICONS.running;
   const text = $('.step-text', row);
-  if (text) text.textContent = data.text || data.stage;
+  if (text) {
+    let label = data.text || data.stage;
+    if (data.elapsed_ms != null && data.status !== 'running') {
+      label += `（${data.elapsed_ms >= 1000
+        ? (data.elapsed_ms / 1000).toFixed(1) + 's' : Math.round(data.elapsed_ms) + 'ms'}）`;
+    }
+    text.textContent = label;
+  }
 
   // 解构结果做成可展开的卡片，让等待期间有内容可读
   if (data.detail) appendStageDetail(row, data.detail);
@@ -499,8 +506,9 @@ export function collapseLoadingStages(el) {
  * 渲染来源卡片区。
  * @param {HTMLElement} row - 助手消息行
  * @param {Array<Object>} sources - 来源数组
+ * @param {Object} [refReport] - 后端引用后处理报告(含 uncited 列表)
  */
-export function appendSources(row, sources) {
+export function appendSources(row, sources, refReport) {
   if (!sources || !sources.length) return;
   const body = $('.msg-body', row);
 
@@ -527,6 +535,14 @@ export function appendSources(row, sources) {
   list.className = 'sources-list visible';
 
   sources.forEach((s) => list.appendChild(createSourceCard(s)));
+
+  // 引用覆盖率提示:有检索资料未被正文引用时,如实告知用户
+  if (refReport && Array.isArray(refReport.uncited) && refReport.uncited.length) {
+    const hint = document.createElement('div');
+    hint.className = 'sources-uncited-hint';
+    hint.textContent = `提示:其中 ${refReport.uncited.length} 条资料未在正文中明确引用,可作延伸阅读`;
+    list.appendChild(hint);
+  }
 
   section.append(header, list);
   body.appendChild(section);
@@ -815,7 +831,22 @@ async function copyToClipboard(text, btn) {
  * @param {string} markdown - Markdown 源文本
  * @param {Array<HTMLElement>} panels - 需要保留在顶部的面板（思考、搜索）
  */
-export function renderAnswer(msgText, markdown, panels) {
+/**
+ * 渲染回答正文。流式输出时按"完整段落"增量追加,避免每 50ms
+ * 把全文重新 marked + DOMPurify 一遍(长回答在手机端会卡)。
+ *
+ * 增量规则:
+ *  - 只有新增部分里出现完整段落(以 \n\n 收尾)才追加渲染,尾段
+ *    留给下一轮;流结束时调用方传 force=true 补一次全量渲染;
+ *  - 代码块保护:若渲染起点处于未闭合的 ``` 围栏内,退回全量,
+ *    绝不把代码块切碎。
+ *
+ * @param {HTMLElement} msgText - 消息文本容器
+ * @param {string} markdown - 当前完整正文
+ * @param {Array<HTMLElement>} [panels] - 思考/搜索面板(排在正文前)
+ * @param {boolean} [force] - 强制全量渲染(流结束、历史重建)
+ */
+export function renderAnswer(msgText, markdown, panels, force = false) {
   const list = panels.filter(Boolean);
   // 面板要排在正文前面，且顺序固定，避免每轮重绘位置跳动
   list.forEach((panel, i) => {
@@ -829,11 +860,68 @@ export function renderAnswer(msgText, markdown, panels) {
     answer = document.createElement('div');
     answer.className = 'msg-answer';
     msgText.appendChild(answer);
+    msgText.dataset.renderedLen = '0';
   }
-  // 只重绘正文这一块，面板的 DOM 完全不动
-  answer.innerHTML = renderMarkdown(markdown);
+
+  const prevLen = parseInt(msgText.dataset.renderedLen || '0', 10);
+
+  const fullRender = () => {
+    answer.innerHTML = renderMarkdown(markdown);
+    msgText.dataset.renderedLen = String(markdown.length);
+    hardenLinks(answer);
+    refreshIcons();
+  };
+
+  // 首次 / 强制 / 文本回退(编辑或切换后长度缩小) -> 全量
+  if (!prevLen || force || markdown.length <= prevLen) {
+    fullRender();
+    return;
+  }
+
+  // 代码块保护:起点仍在未闭合围栏内 -> 全量
+  const prevText = markdown.slice(0, prevLen);
+  const fences = (prevText.match(/```/g) || []).length;
+  if (fences % 2 === 1) {
+    fullRender();
+    return;
+  }
+
+  // 只渲染新增的完整段落;没有完整段落就等下一轮
+  const newText = markdown.slice(prevLen);
+  const idx = newText.lastIndexOf('\n\n');
+  if (idx <= 0) return;
+
+  const chunk = newText.slice(0, idx + 2);
+  answer.insertAdjacentHTML('beforeend', renderMarkdown(chunk));
+  msgText.dataset.renderedLen = String(prevLen + idx + 2);
   hardenLinks(answer);
-  refreshIcons();
+}
+
+/**
+ * 在消息底部渲染一行耗时摘要(问题 12 的前端展示)。
+ * @param {HTMLElement} row - 助手消息行
+ * @param {Object} timings - done 事件带回的 {xx_ms: ...}
+ */
+export function showTimings(row, timings) {
+  if (!row || !timings) return;
+  const body = $('.msg-body', row);
+  if (!body) return;
+  const existing = $('.timing-bar', body);
+  if (existing) existing.remove();
+
+  const fmt = (ms) => (ms >= 1000 ? (ms / 1000).toFixed(1) + 's' : Math.round(ms) + 'ms');
+  const parts = [];
+  if (timings.analyze_ms != null) parts.push(`解构 ${fmt(timings.analyze_ms)}`);
+  if (timings.retrieve_ms != null) parts.push(`检索 ${fmt(timings.retrieve_ms)}`);
+  if (timings.first_token_ms != null) parts.push(`首字 ${fmt(timings.first_token_ms)}`);
+  if (timings.generate_ms != null) parts.push(`生成 ${fmt(timings.generate_ms)}`);
+  if (timings.total_ms != null) parts.push(`总计 ${fmt(timings.total_ms)}`);
+  if (!parts.length) return;
+
+  const bar = document.createElement('div');
+  bar.className = 'timing-bar';
+  bar.textContent = parts.join(' · ');
+  body.appendChild(bar);
 }
 
 /**

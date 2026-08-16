@@ -1,0 +1,67 @@
+# MarxLen 持续集成 —— 完整测试流
+#
+# 每次 push 与 pull request 触发,全部测试零外部 API 依赖:
+#   - 后端:纯逻辑 / 缓存 / 配置 / kb 数据工程管道(假嵌入)/ 修复专项
+#   - 前端:ES module 语法与导入检查
+#
+# 真实 API 测试(tests/test_integration.py、test_api.py、test_degrade.py)
+# 会产生调用费用且耗时长,不在此运行;由开发者本地按需执行。
+
+name: CI 测试
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: 后端测试(Python 3.12)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 安装 uv
+        run: pip install uv
+
+      - name: 缓存依赖
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            rag/.venv
+          key: uv-${{ runner.os }}-${{ hashFiles('rag/uv.lock') }}
+
+      - name: 安装依赖
+        working-directory: rag
+        run: uv sync --frozen --no-install-project
+
+      - name: 运行全部测试
+        working-directory: rag
+        run: uv run python ../tests/run_all.py
+
+  frontend:
+    name: 前端检查(Node)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: ES module 语法与导入检查
+        run: node --experimental-vm-modules tests/check_frontend.mjs

@@ -211,8 +211,30 @@ def _strip_dimension_label(text: str) -> str:
     return cleaned or text.strip()
 
 
+# 对话历史的格式化:只取最近 2 轮(4 条),单条截断,控制 token 开销。
+_PLANNER_HISTORY_MSGS = 4
+_PLANNER_HISTORY_LEN = 200
+
+
+def _format_history(history) -> str:
+    """把最近几条消息格式化为解构提示词的上下文块
+
+    追问场景("那第二条呢?")脱离上下文无法解构,带上历史后
+    模型可以先把指代还原成完整语义,再生成检索计划。
+    """
+    if not history:
+        return ""
+    lines = ["【对话历史】"]
+    for msg in history[-_PLANNER_HISTORY_MSGS:]:
+        role = "用户" if msg.get("role") == "user" else "助手"
+        content = (msg.get("content") or "")[:_PLANNER_HISTORY_LEN]
+        lines.append("  %s: %s" % (role, content))
+    return "\n".join(lines)
+
+
 def build_query_plan(sdk_client, model_name: str, question: str,
-                     rag_prompt: str, timeout: Optional[float] = None) -> QueryPlan:
+                     rag_prompt: str, timeout: Optional[float] = None,
+                     history: Optional[list] = None) -> QueryPlan:
     """执行检索前置分析，产出结构化检索计划
 
     参数:
@@ -222,6 +244,8 @@ def build_query_plan(sdk_client, model_name: str, question: str,
         rag_prompt: RAG_prompt 模板（含 {question} 占位符）
         timeout:    单次分析的超时秒数，超时即降级。
                     不传则取设置项 planner_timeout
+        history:    最近对话消息 [{"role","content"}, ...]，
+                    用于还原追问中的指代（修复：多轮追问检索质量）
 
     任何异常都不向上抛出，而是返回 analysis_ok=False 的降级计划，
     让检索退回"直接用原问题检索"这条始终可用的路径。
@@ -239,8 +263,25 @@ def build_query_plan(sdk_client, model_name: str, question: str,
 
     try:
         # RAG_prompt 用 {question} 作为占位符；用 replace 而非 format，
-        # 避免提示词里的 JSON 示例花括号被 format 误当成占位符
-        filled = rag_prompt.replace("{question}", question)
+        # 避免提示词里的 JSON 示例花括号被 format 误当成占位符。
+        #
+        # 对话历史注入：提示词含 {history} 占位符时原位替换；
+        # 旧版提示词没有占位符，则把历史块拼到问题之前（仍有效）。
+        # 必须先注入历史、再替换问题占位符，否则问题会被吞掉。
+        history_block = _format_history(history)
+        if history_block:
+            if "{history}" in rag_prompt:
+                filled = rag_prompt.replace("{history}", history_block) \
+                                   .replace("{question}", question)
+            else:
+                filled = rag_prompt.replace(
+                    "{question}",
+                    history_block + "\n用户当前问题: {question}") \
+                    .replace("{question}", question)
+            logger.info("前置分析携带 %d 条对话历史",
+                        min(len(history or []), _PLANNER_HISTORY_MSGS))
+        else:
+            filled = rag_prompt.replace("{question}", question)
 
         req = {
             "model": model_name,

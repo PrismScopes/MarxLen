@@ -76,6 +76,23 @@ function writeBool(key, value) {
 
 // ── 运行时状态 ──────────────────────────────────────────────
 
+/** 思考强度的合法档位（参考 DSH 推理等级） */
+export const THINKING_EFFORTS = ['off', 'high', 'max'];
+
+/**
+ * 读取思考强度：localStorage 有记录则用之，否则返回传入的默认档。
+ * @param {string} fallback - 默认档（off/high/max）
+ * @returns {string}
+ */
+function readEffort(fallback = 'off') {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.thinkingEffort);
+    return THINKING_EFFORTS.includes(raw) ? raw : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 /**
  * 全局运行时状态。
  * 只读访问可直接取字段，写入请走下面的 setter，
@@ -92,8 +109,8 @@ export const state = {
   streamingConvId: null,
   /** 问答模式：general / methodology / original */
   currentMode: 'general',
-  /** 深度思考开关（持久化） */
-  thinkingMode: readBool(STORAGE_KEYS.thinkingMode, false),
+  /** 思考强度：off / high / max（默认 off，秒回） */
+  thinkingEffort: readEffort('off'),
   /** 联网搜索开关（持久化，原版漏了这个） */
   searchMode: readBool(STORAGE_KEYS.searchMode, false),
   /** 当前选中的模型 ID */
@@ -115,12 +132,32 @@ export function isSwitchedAway() {
 }
 
 /**
- * 设置深度思考开关并持久化。
- * @param {boolean} enabled - 是否开启
+ * 设置思考强度并持久化。
+ * @param {string} effort - off / high / max
  */
-export function setThinkingMode(enabled) {
-  state.thinkingMode = enabled;
-  writeBool(STORAGE_KEYS.thinkingMode, enabled);
+export function setThinkingEffort(effort) {
+  if (!THINKING_EFFORTS.includes(effort)) effort = 'off';
+  state.thinkingEffort = effort;
+  try {
+    localStorage.setItem(STORAGE_KEYS.thinkingEffort, effort);
+  } catch {
+    /* 忽略存储失败 */
+  }
+}
+
+/**
+ * 应用后端配置的默认思考强度（仅当本地无记录时）。
+ * @param {string} effort - 后端设置项 thinking_effort 的值
+ */
+export function applyDefaultThinkingEffort(effort) {
+  if (!THINKING_EFFORTS.includes(effort)) return;
+  try {
+    if (localStorage.getItem(STORAGE_KEYS.thinkingEffort) === null) {
+      state.thinkingEffort = effort;
+    }
+  } catch {
+    /* 隐私模式，保持现有值 */
+  }
 }
 
 /**

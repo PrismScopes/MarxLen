@@ -81,7 +81,39 @@ check("robust/坏JSON来源降级为空", bad and bad[1] == [])
 c3._conn.execute("UPDATE answer_cache SET sources='{\"a\":1}' WHERE query_hash=?", (qh3,))
 c3._conn.commit()
 check("robust/非列表来源降级为空", c3.get("坏问题")[1] == [])
-c3.close()
+
+# ============ 4. 知识库版本隔离 ============
+c4 = AnswerCache(db_path=os.path.join(tmp, "v4.db"))
+c4.put("同问题", "旧版本答案", [], kb_version="b-old")
+c4.put("同问题", "新版本答案", [], kb_version="b-new")
+ans_old = c4.get("同问题", kb_version="b-old")
+ans_new = c4.get("同问题", kb_version="b-new")
+check("kbver/同问题双版本并存",
+      ans_old is not None and ans_old[0] == "旧版本答案"
+      and ans_new is not None and ans_new[0] == "新版本答案",
+      (ans_old, ans_new))
+check("kbver/版本不匹配不命中", c4.get("同问题", kb_version="b-other") is None)
+check("kbver/默认legacy不串版本", c4.get("同问题") is None)
+c4.close()
+
+# 旧库迁移后,旧数据归入 legacy 仍可命中
+db5 = os.path.join(tmp, "v5.db")
+conn5 = sqlite3.connect(db5)
+conn5.execute("""CREATE TABLE answer_cache (
+    query_hash TEXT PRIMARY KEY, query_text TEXT NOT NULL,
+    answer TEXT NOT NULL, created_at REAL NOT NULL)""")
+qh5 = hashlib.md5("老问题".encode("utf-8")[:500]).hexdigest()
+conn5.execute("INSERT INTO answer_cache VALUES (?,?,?,?)", (qh5, "老问题", "老答案", 0.0))
+conn5.commit()
+conn5.close()
+c5 = AnswerCache(db_path=db5)
+check("kbver/迁移后旧数据归legacy",
+      c5.get("老问题") is not None and c5.get("老问题")[0] == "老答案")
+c5.put("老问题", "新版答案", [], kb_version="b-new")
+check("kbver/迁移后新旧并存",
+      c5.get("老问题")[0] == "老答案"
+      and c5.get("老问题", kb_version="b-new")[0] == "新版答案")
+c5.close()
 
 print("\n" + "=" * 50)
 print(f"失败 {len(FAIL)} 项: {FAIL}" if FAIL else "全部通过")
