@@ -3358,6 +3358,88 @@
   background: var(--color-surface);
 }
 
+/* ── 模型管理卡(模型分类顶部) ─────────────────────── */
+.settings-model-add-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin-bottom: var(--space-3);
+}
+.settings-model-add-row .settings-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-model-list {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--color-border-light);
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+}
+
+.settings-model-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+}
+.settings-model-item + .settings-model-item {
+  border-top: 1px solid var(--color-border-light);
+}
+
+.settings-model-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.settings-model-item-name {
+  font-size: var(--font-size-body-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+.settings-model-item-id {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-caption);
+  color: var(--color-text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 图标移除按钮:默认低对比,悬浮变红 */
+.settings-model-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  flex-shrink: 0;
+  color: var(--color-text-tertiary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+.settings-model-remove i {
+  width: 15px;
+  height: 15px;
+}
+.settings-model-remove:hover:not(:disabled) {
+  color: var(--color-danger, #dc2626);
+  background: rgba(220, 38, 38, 0.08);
+  border-color: rgba(220, 38, 38, 0.25);
+}
+.settings-model-remove:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .settings-provider-head {
   display: flex;
   align-items: baseline;

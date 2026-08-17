@@ -574,7 +574,8 @@ function renderModelManager(modelOptions, onModelsChanged) {
     rm.className = 'settings-model-remove';
     rm.title = '移除该模型';
     rm.setAttribute('aria-label', `移除 ${m.name}`);
-    rm.textContent = '✕';
+    // 用 lucide 图标而非文本 ✕,与全站图标风格一致
+    rm.innerHTML = '<i data-lucide="trash-2"></i>';
     rm.addEventListener('click', async () => {
       rm.disabled = true;
       try {
@@ -597,6 +598,7 @@ function renderModelManager(modelOptions, onModelsChanged) {
   }
   card.appendChild(list);
 
+  refreshIcons();  // 渲染图标按钮
   return card;
 }
 
