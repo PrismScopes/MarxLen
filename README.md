@@ -22,9 +22,11 @@ MarxLen（马列通）让你用自然语言向马列经典著作提问。系统�
 |------|------|------|
 | 通用问答 | 可用 | 全量著作检索 + LLM 生成，附来源引用 |
 | 原文阅读器 | 可用 | 连续阅读原文，支持目录跳转、模糊搜索、来源定位 |
-| 深度思考 | 可用 | 使用推理模型，展示完整思考过程 |
+| 深度思考 | 可用 | 三档推理强度（关闭 / 标准 / 深度），展示完整思考过程 |
 | 检索过程可视化 | 可用 | 实时展示问题解构、检索、重排各阶段进度 |
 | 对话消息树 | 可用 | 修改提问或重新生成不会丢弃旧回答，可用箭头切换版本 |
+| 模型管理 | 可用 | GUI 直接添加 / 移除模型，无需手编配置文件 |
+| 知识库活水更新 | 可用 | 增量构建 + 门禁发布 + 热切换，详见下文 kb 章节 |
 | 马哲方法论模式 | 开发中 | 运用唯物辩证法方法论分析现实问题 |
 | **联网搜索** | **开发中，暂未启用** | 界面上的开关目前不会生效，请勿依赖 |
 
@@ -220,10 +222,11 @@ rag/.venv/Scripts/python -m api.main
 | `OPENAI_API_KEY` | — | 生成模型密钥 |
 | `OPENAI_MODEL` | `deepseek-chat` | 默认模型 ID |
 | `OPENAI_MODEL_LIST` | — | 设置页下拉可选模型，格式 `id1:显示名1,id2:显示名2` |
-| `EMBED_API_BASE_URL` | — | embedding / rerank 服务地址 |
+| `EMBED_API_BASE_URL` | `https://api2.aigcbest.top/v1` | embedding / rerank 服务地址（该服务商自带全套模型，只需填 key） |
 | `EMBED_API_KEY` | — | embedding / rerank 密钥 |
 | `EMBED_MODEL` | `Qwen/Qwen3-Embedding-0.6B` | 向量模型，**不要改** |
 | `RERANK_MODEL` | `Qwen/Qwen3-Reranker-4B` | 重排序模型，可换 |
+| `PLANNER_MODEL` | 空（跟随对话模型） | 检索前问题解构使用的模型。解构只做结构化抽取，建议用快模型；留空则与对话模型一致 |
 | `CORS_ALLOW_ORIGINS` | 本地两个地址 | 前端独立部署到别的域名时才需要配 |
 
 `EMBED_MODEL` 必须保持默认值。仓库提供的索引是用这个模型生成的，换成别的模型后向量维度与语义空间都不一致，检索结果会完全错乱。你的 embedding 服务商需要支持该模型。
@@ -253,16 +256,62 @@ rag/.venv/Scripts/python -m api.main
 
 索引文件不进代码仓库（过大），Windows 用户由 MarxLen.exe 安装时自动下载，Linux / macOS 用户见「快速开始」手动部署。
 
+## 知识库活水更新（kb 离线数据工程）
+
+从 v2 起，项目内置一套离线数据工程（`kb/` 包），支持**不重下整个索引的增量更新**：
+
+- **内容寻址（CAS）**：同一段文字永远得到同一个 chunk ID，跨版本复用，重复文本只嵌入一次；
+- **增量构建**：语料文件变化时只重算变动的文件，未变片段连同向量整体复用（嵌入走文本级缓存，崩溃后重跑不重复烧钱）；
+- **双门禁发布**：一致性校验（三方索引数量对齐、定位命中率、uuid 唯一、嵌入健康）为硬门禁，golden 集评估（MRR / recall@k）为软门禁，通过才能发布；
+- **原子切换**：发布只是改 `data/releases.json` 指针，在线服务检测到变化后后台加载新索引并原子切换，**无需重启、随时可回滚**；
+- **与旧版兼容**：尚无发布记录时自动回退到 `rag/` 目录的传统索引，行为与 v2 之前完全一致。
+
+常用命令（使用 rag 虚拟环境）：
+
+```bash
+rag/.venv/Scripts/python -m kb status      # 当前发布版本与语料变更
+rag/.venv/Scripts/python -m kb scan        # 只读扫描语料差异
+rag/.venv/Scripts/python -m kb seed        # 把现有 v1 索引登记为基线
+rag/.venv/Scripts/python -m kb build       # 构建新版本（默认增量）
+rag/.venv/Scripts/python -m kb verify <id> # 一致性验证门禁
+rag/.venv/Scripts/python -m kb eval <id>   # golden 集召回评估
+rag/.venv/Scripts/python -m kb eval-gen <id>  # 生成质量评估（引用覆盖率 + LLM 评分，耗额度）
+rag/.venv/Scripts/python -m kb promote <id>   # 发布（在线服务热切换）
+rag/.venv/Scripts/python -m kb rollback    # 回滚到上一版本
+rag/.venv/Scripts/python -m kb gc          # 清理旧构建目录
+```
+
+安装器（MarxLen.exe）在下载知识库后会自动执行 `kb seed` 登记基线，作者发布新版本后重跑安装即可增量更新。
+
+## RAG 质量优化
+
+检索与生成环节内置以下机制，保障回答质量：
+
+- **问题解构**：检索前先用 LLM 把口语化问题解构为学科定位、核心矛盾、经典命题与关键词（RAG_prompt），HyDE 增强召回；
+- **多通道检索**：多个命题并行向量检索 + 关键词 BM25，RRF 融合，单通道失败不影响整体；
+- **检索自检与补检**：覆盖度不足（来源文件过少或无重排分）时，用核心矛盾定向补一轮检索；
+- **重排序**：Rerank 模型按相关度精排候选文档，低分文档被过滤；
+- **上下文预算管理**：参考文档按重排分数加权分配字数预算（`context_max_chars`，默认 3500 字），高分文档保留完整、低分只留关键句，避免长上下文稀释注意力；
+- **忠实度约束**：主提示词要求以文档为事实基准、区分文档与自身知识、不强行混同历史语境差异、引用与内容严格对应；
+- **引用后处理**：流结束后统一校验引用格式、转换编号引用、统计引用覆盖率；
+- **生成质量评估**：`kb eval-gen` 用引用覆盖率 + LLM-as-judge（忠实度 / 完整性 / 清晰度）量化回答质量，作为后续调优的基线。
+
 ## 项目结构
 
 ```
 api/                后端服务（FastAPI + SSE 流式接口）
   reader.py         原文阅读器与模糊搜索
   conversation_store.py  对话消息树存储
+  settings_store.py 统计与缓存维护
 rag/                检索与问答引擎
   retriever.py      混合检索（向量 + BM25 并行，RRF 融合）
-  generator.py      回答生成与流式输出
+  generator.py      回答生成与流式输出（上下文预算、引用后处理）
   query_planner.py  问题解构与检索计划
+  config_store.py   配置中心（CONFIG_SCHEMA 单一数据源，驱动设置页）
+  cache_store.py    嵌入与回答缓存（按知识库版本隔离）
+  telemetry.py      请求级可观测性（request_id、阶段计时、性能统计）
+kb/                 离线数据工程（清单、构建、校验、评估、发布、热切换）
+data/               知识库构建产物与发布指针（不入库，仅 golden.jsonl 入库）
 deploy/             部署脚本源码（不随仓库分发，打包为 MarxLen.exe 与 deploy-scripts.zip 经 Releases 提供）
 Prompt/             提示词（可独立编辑，改动无需改代码）
 marxist-rag-ui/     前端页面

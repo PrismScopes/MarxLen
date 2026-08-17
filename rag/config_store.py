@@ -374,11 +374,12 @@ CONFIG_SCHEMA: List[ConfigItem] = [
         requires_restart=True,
     ),
     ConfigItem(
-        key="planner_model", type="text", default="deepseek-chat",
+        key="planner_model", type="text", default="",
         label="前置分析模型", category="prompt",
-        description="前置分析只做结构化抽取，用快模型即可。"
-                    "推理型模型会为此多花数倍时间（实测 9.8s vs 3.5s）。"
-                    "留空则跟随回答所用的模型",
+        description="检索前问题解构使用的模型。只做结构化抽取，用快模型即可"
+                    "（推理型模型会为此多花数倍时间）。留空则跟随对话模型。"
+                    "可写进 .env 的 PLANNER_MODEL 统一管理",
+        store="env", env_key="PLANNER_MODEL",
     ),
     ConfigItem(
         key="planner_temperature", type="number", default=0.2,
