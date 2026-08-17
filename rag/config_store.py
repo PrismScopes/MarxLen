@@ -238,9 +238,12 @@ CONFIG_SCHEMA: List[ConfigItem] = [
         env_aliases=["DEEPSEEK_API_KEY"], secret=True,
     ),
     ConfigItem(
-        key="embed_api_base_url", type="text", default="https://api2.aigcbest.top/v1",
+        key="embed_api_base_url", type="text",
+        default="https://api.siliconflow.cn/v1",
         label="嵌入/重排 API 地址", category="api",
-        description="Embedding 与 Rerank 共用的端点地址。保存后立即生效",
+        description="Embedding 与 Rerank 共用的端点地址。默认硅基流动"
+                    "（免费注册、有免费额度、同时提供嵌入与重排模型）。"
+                    "保存后立即生效",
         store="env", env_key="EMBED_API_BASE_URL",
     ),
     ConfigItem(

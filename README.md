@@ -222,7 +222,7 @@ rag/.venv/Scripts/python -m api.main
 | `OPENAI_API_KEY` | — | 生成模型密钥 |
 | `OPENAI_MODEL` | `deepseek-chat` | 默认模型 ID |
 | `OPENAI_MODEL_LIST` | — | 设置页下拉可选模型，格式 `id1:显示名1,id2:显示名2` |
-| `EMBED_API_BASE_URL` | `https://api2.aigcbest.top/v1` | embedding / rerank 服务地址（该服务商自带全套模型，只需填 key） |
+| `EMBED_API_BASE_URL` | `https://api.siliconflow.cn/v1` | embedding / rerank 服务地址（默认硅基流动，免费注册、有免费额度、自带全套模型） |
 | `EMBED_API_KEY` | — | embedding / rerank 密钥 |
 | `EMBED_MODEL` | `Qwen/Qwen3-Embedding-0.6B` | 向量模型，**不要改** |
 | `RERANK_MODEL` | `Qwen/Qwen3-Reranker-4B` | 重排序模型，可换 |
