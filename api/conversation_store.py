@@ -399,17 +399,31 @@ class ConversationStore:
         return row[0] if row else None
 
     def update_message(self, conv_id: str, msg_id: int, content: str,
-                       sources: Optional[List[SourceItem]] = None,
+                       sources: Optional[list] = None,
                        thinking_content: str = "",
                        stage_detail: Optional[dict] = None) -> bool:
         """更新消息内容与附件字段（生成中快照 / 结束时最终落库）
 
         单条 UPDATE 天然原子，无需显式事务。
         返回是否真的更新了行。
+
+        sources 同时接受两种形态：
+          - SourceItem 对象列表（对话存储内部使用，model_dump 序列化）
+          - 普通 dict 列表（生成线程 ask_stream 直接产出，无 model_dump）
+        统一在此归一化，避免调用方类型不匹配导致落库失败、来源丢失。
         """
-        sources_json = json.dumps(
-            [s.model_dump() for s in sources], ensure_ascii=False
-        ) if sources else "[]"
+        if sources:
+            serialized = []
+            for s in sources:
+                if isinstance(s, dict):
+                    serialized.append(s)
+                elif hasattr(s, "model_dump"):
+                    serialized.append(s.model_dump())
+                else:
+                    serialized.append(dict(s))
+            sources_json = json.dumps(serialized, ensure_ascii=False)
+        else:
+            sources_json = "[]"
         stage_json = json.dumps(stage_detail, ensure_ascii=False) \
             if stage_detail else ""
         cur = self._conn.execute(
