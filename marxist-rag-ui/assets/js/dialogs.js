@@ -78,24 +78,26 @@ function buildDialogButtons(confirmText, onCancel, onConfirm) {
 
 /**
  * 弹出文本输入对话框。
+ *
+ * 支持两种形态:
+ *   - 单个输入框:不传 fields,resolve 返回字符串
+ *   - 多字段表单:传 options.fields = [{key, label, placeholder, defaultValue}],
+ *     resolve 返回 { key: value, ... }
+ *
  * @param {Object} options - 配置
  * @param {string} options.title - 标题
- * @param {string} [options.placeholder] - 输入框占位符
- * @param {string} [options.defaultValue] - 默认值
+ * @param {string} [options.placeholder] - 单输入框占位符
+ * @param {string} [options.defaultValue] - 单输入框默认值
+ * @param {Array} [options.fields] - 多字段表单定义
  * @param {string} [options.confirmText] - 确定按钮文案
- * @returns {Promise<string|null>} - 用户输入的文本，取消时为 null
+ * @returns {Promise<string|Object|null>} - 输入内容，取消时为 null
  */
 export function showInputDialog(options) {
   return new Promise((resolve) => {
     const { overlay, body, footer, close } = buildDialogShell(options.title || '请输入');
-
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.className = 'inline-dialog-input';
-    input.placeholder = options.placeholder || '';
-    input.value = options.defaultValue || '';
-    input.setAttribute('aria-label', options.title || '输入');
-    body.appendChild(input);
+    const fields = Array.isArray(options.fields) && options.fields.length
+      ? options.fields : null;
+    const inputs = [];
 
     const finish = (value) => {
       close();
@@ -103,33 +105,75 @@ export function showInputDialog(options) {
       resolve(value);
     };
 
+    if (fields) {
+      fields.forEach((f) => {
+        if (f.label) {
+          const lab = document.createElement('div');
+          lab.className = 'inline-dialog-field-label';
+          lab.textContent = f.label;
+          body.appendChild(lab);
+        }
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'inline-dialog-input';
+        input.placeholder = f.placeholder || '';
+        input.value = f.defaultValue || '';
+        input.setAttribute('aria-label', f.label || f.placeholder || '输入');
+        body.appendChild(input);
+        inputs.push(input);
+      });
+    } else {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'inline-dialog-input';
+      input.placeholder = options.placeholder || '';
+      input.value = options.defaultValue || '';
+      input.setAttribute('aria-label', options.title || '输入');
+      body.appendChild(input);
+      inputs.push(input);
+    }
+
     const { cancelBtn, confirmBtn } = buildDialogButtons(
       options.confirmText || '确定',
       () => finish(null),
       () => {
-        const value = input.value.trim();
-        finish(value || null);
+        if (fields) {
+          const values = {};
+          fields.forEach((f, i) => { values[f.key] = inputs[i].value.trim(); });
+          finish(Object.values(values).some((v) => v) ? values : null);
+        } else {
+          const value = inputs[0].value.trim();
+          finish(value || null);
+        }
       },
     );
     footer.append(cancelBtn, confirmBtn);
 
     /**
-     * 键盘快捷键：Enter 确认，Escape 取消。
+     * 键盘快捷键：Enter 前进/确认，Escape 取消。
      * @param {KeyboardEvent} e
      */
     function onKeydown(e) {
-      if (e.key === 'Enter') { e.preventDefault(); confirmBtn.click(); }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const idx = inputs.indexOf(document.activeElement);
+        if (idx >= 0 && idx < inputs.length - 1) {
+          inputs[idx + 1].focus();
+        } else {
+          confirmBtn.click();
+        }
+      }
       if (e.key === 'Escape') { e.preventDefault(); cancelBtn.click(); }
     }
-    input.addEventListener('keydown', onKeydown);
+    inputs.forEach((input) => input.addEventListener('keydown', onKeydown));
 
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) cancelBtn.click();
     });
 
     document.body.appendChild(overlay);
-    input.focus();
-    input.select();
+    inputs[0].focus();
+    inputs[0].select();
   });
 }
 

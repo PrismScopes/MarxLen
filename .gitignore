@@ -49,8 +49,7 @@ data/*
 ww/*
 !ww/README.md
 pdf_ocr/
-# 建库与向量化脚本不对外分发：索引由本仓库直接提供预构建版本
-rag/ingest_philosophy.py
+# 建库与向量化脚本不对外分发：建库统一走 kb/ 数据工程（python -m kb build）
 clean_ww_texts.py
 rebuild_bm25_index.py
 

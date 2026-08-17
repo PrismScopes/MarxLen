@@ -19,7 +19,7 @@ from .paths import WW_DIR, MANIFESTS_DIR, manifest_path
 
 logger = logging.getLogger(__name__)
 
-# 与 rag/ingest_philosophy.py 一致：文件名带 "(1).md" 的是重复副本，跳过
+# 与 v1 建库规则一致：文件名带 "(1).md" 的是重复副本，跳过
 _DUPLICATE_PATTERN = re.compile(r"\(1\)\.md$")
 
 _HASH_CHUNK = 1024 * 1024

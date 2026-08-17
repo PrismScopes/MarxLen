@@ -152,7 +152,7 @@ class HybridRetriever:
         if len(self.docs) != doc_count:
             raise RuntimeError(
                 f"索引不一致：BM25 有 {len(self.docs)} 条，SQLite 有 {doc_count} 条。"
-                f"请重新运行 ingest_philosophy.py 同时重建两个索引。"
+                f"请重新运行 kb build --full 重建知识库。"
             )
 
         # 抽查若干条，确认 id 指向的 SQLite 行与 BM25 元数据描述的是同一篇文档
@@ -165,7 +165,7 @@ class HybridRetriever:
             if doc_id is None:
                 raise RuntimeError(
                     "BM25 元数据缺少 id 字段，属于旧版索引格式，检索会回查到错误文本。"
-                    "请重新运行 ingest_philosophy.py 重建索引。"
+                    "请重新运行 kb build --full 重建知识库。"
                 )
             row = self.store.conn.execute(
                 "SELECT title, source FROM documents WHERE id = ?", (doc_id,)
@@ -177,7 +177,7 @@ class HybridRetriever:
         if mismatched:
             raise RuntimeError(
                 f"索引错位：抽查 {checked} 条中有 {mismatched} 条 BM25 元数据与 SQLite 不匹配。"
-                f"请重新运行 ingest_philosophy.py 重建索引。"
+                f"请重新运行 kb build --full 重建知识库。"
             )
 
         # FAISS 里可能残留指向已不存在 SQLite 行的向量（历史建库时批次回滚
@@ -188,7 +188,7 @@ class HybridRetriever:
             logging.warning(
                 f"FAISS 有 {vector_count} 条向量，SQLite 只有 {doc_count} 条文档，"
                 f"其中 {vector_count - doc_count} 条向量无对应文本会被跳过。"
-                f"重新运行 ingest_philosophy.py 可消除该差异。"
+                f"重新运行 kb build --full 可消除该差异。"
             )
 
         logging.info(f"索引一致性校验通过（{doc_count} 条文档，抽查 {checked} 条）")
@@ -196,7 +196,7 @@ class HybridRetriever:
     def _load_bm25_index(self):
         """从本地磁盘加载 BM25 索引"""
         if not os.path.exists(self.bm25_path):
-            raise FileNotFoundError(f"找不到 BM25 索引文件 {self.bm25_path}。请先运行 ingest_philosophy.py 进行建库！")
+            raise FileNotFoundError(f"找不到 BM25 索引文件 {self.bm25_path}。请先运行 kb build --full 建库！")
 
         logging.info(f"正在从 {self.bm25_path} 加载 BM25 索引...")
         with open(self.bm25_path, 'rb') as f:

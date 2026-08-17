@@ -3583,6 +3583,36 @@
   display: block;
 }
 
+/* 添加自定义模型入口(模型弹窗列表底部) */
+.model-modal-add {
+  margin-top: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm, 8px);
+  font-size: var(--font-size-body-sm);
+  color: var(--color-text-secondary);
+  text-align: center;
+  cursor: pointer;
+  transition: background-color var(--transition-fast),
+              border-color var(--transition-fast);
+}
+.model-modal-add:hover {
+  background-color: var(--color-bg-tertiary);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* 多字段对话框:字段标签 */
+.inline-dialog-field-label {
+  font-size: 12px;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  margin: var(--space-3) 0 var(--space-1);
+}
+.inline-dialog-field-label:first-child {
+  margin-top: 0;
+}
+
 .model-modal-footer {
   display: flex;
   align-items: center;

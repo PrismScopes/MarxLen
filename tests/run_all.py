@@ -25,6 +25,7 @@ TESTS = [
     "test_config.py",
     "test_kb_pipeline.py",
     "test_fixes.py",
+    "test_model_mgmt.py",
 ]
 
 

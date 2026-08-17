@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-语料分块 —— 与 rag/ingest_philosophy.py 相同的规则，重构为可复用纯函数
+语料分块 —— 与 v1 建库相同的规则，重构为可复用纯函数
 
 分块规则与 v1 完全一致（LangChain 标题切分 + 段落聚合 + 固定大小滑动），
 保证新旧 chunk 的语义单元不变。与 v1 的区别只在：
@@ -46,8 +46,7 @@ def split_file_to_chunks(content: str, filename: str) -> List[Dict]:
     返回:
         [{"uuid": 确定性 chunk_id, "text": ..., "metadata": {...}}, ...]
 
-    说明：title / chapter / category 的推导规则与
-    rag/ingest_philosophy.py::parse_markdown_with_langchain 完全一致。
+    说明：title / chapter / category 的推导规则与 v1 建库脚本完全一致。
     """
     headers_to_split_on = [
         ("#", "Header 1"),

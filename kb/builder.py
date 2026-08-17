@@ -477,7 +477,7 @@ class IndexBuilder:
 
 
 def normalize_l2(vector) -> List[float]:
-    """L2 归一化（与建库端 ingest_philosophy.py 一致）"""
+    """L2 归一化（与 v1 建库端一致）"""
     arr = np.asarray(vector, dtype=np.float32)
     norm = float(np.linalg.norm(arr))
     if norm == 0:

@@ -447,6 +447,131 @@ function renderGroup(titleText, children) {
 }
 
 /**
+ * 模型管理卡:直接在 GUI 添加/移除模型,无需手编 .env 的
+ * OPENAI_MODEL_LIST。添加后立即出现在模型选择器中,无需重启。
+ *
+ * @param {Array} modelOptions - 当前可用模型列表
+ * @param {Function} onModelsChanged - 增删后的刷新回调
+ */
+function renderModelManager(modelOptions, onModelsChanged) {
+  const card = document.createElement('div');
+  card.className = 'settings-provider-card';
+
+  const head = document.createElement('div');
+  head.className = 'settings-provider-head';
+  const title = document.createElement('span');
+  title.className = 'settings-group-title';
+  title.textContent = '模型管理';
+  const hint = document.createElement('span');
+  hint.className = 'settings-provider-hint';
+  hint.textContent = '添加后即可在输入框的模型选择器中切换,无需重启';
+  head.append(title, hint);
+  card.appendChild(head);
+
+  // ── 添加行 ──
+  const row = document.createElement('div');
+  row.className = 'settings-model-add-row';
+
+  const idInput = document.createElement('input');
+  idInput.type = 'text';
+  idInput.className = 'settings-input';
+  idInput.placeholder = '模型 ID，如 deepseek-v4-flash';
+  idInput.setAttribute('aria-label', '模型 ID');
+
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.className = 'settings-input';
+  nameInput.placeholder = '显示名（可空）';
+  nameInput.setAttribute('aria-label', '显示名');
+
+  const addBtn = document.createElement('button');
+  addBtn.type = 'button';
+  addBtn.className = 'settings-action-btn';
+  addBtn.textContent = '添加';
+
+  const status = document.createElement('span');
+  status.className = 'settings-test-result';
+  status.style.marginTop = '0';
+
+  row.append(idInput, nameInput, addBtn);
+  card.appendChild(row);
+  card.appendChild(status);
+
+  const doAdd = async () => {
+    const id = idInput.value.trim();
+    if (!id) {
+      status.className = 'settings-test-result fail';
+      status.textContent = '请输入模型 ID';
+      return;
+    }
+    addBtn.disabled = true;
+    status.className = 'settings-test-result';
+    status.textContent = '添加中...';
+    try {
+      const r = await api.addModel(id, nameInput.value.trim());
+      status.className = 'settings-test-result ok';
+      status.textContent = r.added ? `已添加 ${id}` : `已更新 ${id} 的显示名`;
+      idInput.value = '';
+      nameInput.value = '';
+      if (onModelsChanged) onModelsChanged();
+    } catch (err) {
+      status.className = 'settings-test-result fail';
+      status.textContent = '添加失败: ' + err.message;
+    }
+    addBtn.disabled = false;
+  };
+  addBtn.addEventListener('click', doAdd);
+  idInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doAdd(); });
+
+  // ── 已配置模型列表 ──
+  const list = document.createElement('div');
+  list.className = 'settings-model-list';
+  (modelOptions || []).forEach((m) => {
+    const item = document.createElement('div');
+    item.className = 'settings-model-item';
+
+    const info = document.createElement('div');
+    info.className = 'settings-model-item-info';
+    const name = document.createElement('span');
+    name.className = 'settings-model-item-name';
+    name.textContent = m.name;
+    const id = document.createElement('span');
+    id.className = 'settings-model-item-id';
+    id.textContent = m.id;
+    info.append(name, id);
+
+    const rm = document.createElement('button');
+    rm.type = 'button';
+    rm.className = 'settings-model-remove';
+    rm.title = '移除该模型';
+    rm.setAttribute('aria-label', `移除 ${m.name}`);
+    rm.textContent = '✕';
+    rm.addEventListener('click', async () => {
+      rm.disabled = true;
+      try {
+        await api.removeModel(m.id);
+        if (onModelsChanged) onModelsChanged();
+      } catch (err) {
+        status.className = 'settings-test-result fail';
+        status.textContent = '移除失败: ' + err.message;
+        rm.disabled = false;
+      }
+    });
+    item.append(info, rm);
+    list.appendChild(item);
+  });
+  if (!(modelOptions || []).length) {
+    const empty = document.createElement('div');
+    empty.className = 'settings-model-item-id';
+    empty.textContent = '（暂无其他模型，可在上方添加）';
+    list.appendChild(empty);
+  }
+  card.appendChild(list);
+
+  return card;
+}
+
+/**
  * "接口"分类的定制渲染:预设卡 + 分组 + 测试按钮。
  */
 function renderApiCategory(items, onChange, modelOptions) {
@@ -625,8 +750,10 @@ async function loadStats() {
  * @param {HTMLElement} refs.desc - 右侧描述
  * @param {Function} onModelChange - 模型项变化时的回调，参数为模型 ID
  * @param {Array} [modelOptions=[]] - 可用模型列表，用于补全 model 项的下拉候选
+ * @param {Function} [onModelsChanged] - 模型列表增删后的回调（刷新主界面下拉）
  */
-export async function loadSettings(refs, onModelChange, modelOptions = []) {
+export async function loadSettings(refs, onModelChange, modelOptions = [],
+                                   onModelsChanged = null) {
   const { nav, body, title, desc } = refs;
 
   body.textContent = '';
@@ -648,6 +775,10 @@ export async function loadSettings(refs, onModelChange, modelOptions = []) {
   }
 
   const items = data.items || [];
+
+  // 可变模型列表容器:模型增删后 handleModelsChanged 更新其内容,
+  // 避免闭包里的原始数组引用失效导致重渲染拿到旧数据
+  const modelRef = { items: modelOptions || [] };
 
   /**
    * 提交单个设置项的修改，并给出即时反馈。
@@ -713,11 +844,15 @@ export async function loadSettings(refs, onModelChange, modelOptions = []) {
 
   const allCategories = [...realCategories, ...VIRTUAL_CATEGORIES];
 
+  // 当前激活的分类(模型管理增删后据此重渲染)
+  let activeCategory = null;
+
   /**
    * 切换到指定分类。
    * @param {Object} category - 分类定义
    */
   const selectCategory = (category) => {
+    activeCategory = category;
     // 同步导航项的选中态
     nav.querySelectorAll('.settings-nav-item').forEach((el) => {
       const active = el.dataset.category === category.id;
@@ -740,11 +875,34 @@ export async function loadSettings(refs, onModelChange, modelOptions = []) {
       body.appendChild(renderAbout());
     } else if (category.id === 'api') {
       // 接口分类定制:服务商预设 + API 测试
-      body.appendChild(renderApiCategory(grouped[category.id], handleChange, modelOptions));
+      body.appendChild(renderApiCategory(grouped[category.id], handleChange, modelRef.items));
+    } else if (category.id === 'model') {
+      // 模型分类定制:顶部模型管理卡(直接添加/移除),下方参数
+      body.appendChild(renderModelManager(modelRef.items, handleModelsChanged));
+      body.appendChild(renderCategoryItems(grouped[category.id], handleChange, modelRef.items));
     } else {
-      body.appendChild(renderCategoryItems(grouped[category.id], handleChange, modelOptions));
+      body.appendChild(renderCategoryItems(grouped[category.id], handleChange, modelRef.items));
     }
     refreshIcons();
+  };
+
+  /**
+   * 模型列表增删后:刷新主界面下拉,并重渲染当前分类让列表同步。
+   *
+   * 渲染用的是 modelRef(可变容器)而非闭包里的原始 modelOptions——
+   * 主界面 loadModels 会重新赋值 state.availableModels,旧数组引用
+   * 拿不到最新列表,直接重渲染会显示增删前的数据。
+   */
+  const handleModelsChanged = async () => {
+    if (onModelsChanged) onModelsChanged();
+    try {
+      const latest = await api.listModels();
+      // /models 现在返回 {current, models} 结构,设置页列表用 models
+      modelRef.items = latest.models || [];
+    } catch (e) {
+      console.warn('刷新模型列表失败:', e);
+    }
+    if (activeCategory) selectCategory(activeCategory);
   };
 
   // ── 渲染左侧导航 ──
