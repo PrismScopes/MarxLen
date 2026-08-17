@@ -2387,6 +2387,20 @@
         flex-direction: column;
       }
 
+      /* 分类内的小节标题（如"系统"下的 对话/缓存/服务） */
+      .settings-section-title {
+        margin: var(--space-5) 0 var(--space-2);
+        padding-bottom: var(--space-2);
+        font-size: var(--font-size-body-xs);
+        font-weight: var(--font-weight-semibold);
+        letter-spacing: 0.06em;
+        color: var(--color-text-tertiary);
+        border-bottom: 1px solid var(--color-border-light);
+      }
+      .settings-section-title:first-child {
+        margin-top: 0;
+      }
+
       /* 左边说明、右边控件，中间自动留白 */
       .settings-item {
         display: flex;

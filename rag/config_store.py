@@ -56,6 +56,9 @@ class ConfigItem:
         min / max   数值范围，超出会被钳制
         step        数值步进，供前端 slider/input 使用
         unit        单位，前端显示在输入框后（如"秒"、"条"）
+        section     分类内的小节标题（可选），前端在同一分类下渲染
+                    小节分隔，用于收纳多个子主题（如"系统"下的
+                    对话/缓存/服务）
         store       存储位置：json / env / runtime
         env_key     store=="env" 时对应的环境变量名
         env_aliases 兼容的旧环境变量名，读取时按顺序回退（写入只用 env_key）
@@ -74,6 +77,7 @@ class ConfigItem:
     max: Optional[float] = None
     step: Optional[float] = None
     unit: str = ""
+    section: str = ""
     store: str = "json"
     env_key: Optional[str] = None
     env_aliases: Optional[List[str]] = None
@@ -144,22 +148,22 @@ class ConfigItem:
         return [o["value"] if isinstance(o, dict) else str(o) for o in self.options]
 
 
-# 前端设置页面的分组（顺序即显示顺序）
+# 前端设置页面的分组（顺序即显示顺序）。
+# 按"用户使用场景"组织:模型怎么配、检索怎么调、回答怎么生成、
+# 密钥放哪、阅读器、剩下的系统项。
 CATEGORIES = [
-    {"id": "model",        "label": "模型",   "icon": "cpu",
-     "description": "生成回答所用的大语言模型及其参数"},
-    {"id": "retrieval",    "label": "检索",   "icon": "search",
-     "description": "知识库检索策略与召回数量"},
-    {"id": "prompt",       "label": "提示词", "icon": "file-text",
-     "description": "思考流程与检索前置分析"},
-    {"id": "conversation", "label": "对话",   "icon": "message-square",
-     "description": "上下文、历史记录与联网搜索"},
-    {"id": "cache",        "label": "缓存",   "icon": "database",
-     "description": "嵌入向量与回答缓存"},
-    {"id": "api",          "label": "接口",   "icon": "plug",
-     "description": "API 端点、密钥与超时"},
-    {"id": "server",       "label": "服务",   "icon": "server",
-     "description": "流式传输、跨域与日志"},
+    {"id": "model",     "label": "模型与推理",   "icon": "cpu",
+     "description": "对话模型、候选列表与生成参数"},
+    {"id": "retrieval", "label": "检索与知识库", "icon": "search",
+     "description": "召回策略、融合重排与知识库版本管理"},
+    {"id": "prompt",    "label": "回答与提示词", "icon": "file-text",
+     "description": "思考流程、输出规范与检索前置分析"},
+    {"id": "api",       "label": "接口与密钥",   "icon": "plug",
+     "description": "对话/嵌入/重排三套端点、密钥与超时"},
+    {"id": "reader",    "label": "原文阅读器",   "icon": "book-open",
+     "description": "语料目录、阅读分页与原文检索"},
+    {"id": "system",    "label": "系统",         "icon": "server",
+     "description": "对话上下文、缓存与服务参数"},
 ]
 
 
@@ -207,6 +211,75 @@ CONFIG_SCHEMA: List[ConfigItem] = [
         description="新对话默认的推理强度。off 不启用推理模型思考；"
                     "high / max 映射为 DeepSeek 的 reasoning_effort，"
                     "思考越深耗时越长，需推理模型支持",
+    ),
+    ConfigItem(
+        key="model_list", type="textarea", default="",
+        label="可选模型列表", category="model",
+        description="模型选择器与设置页下拉的候选项，"
+                    "格式：模型ID:显示名，多个用英文逗号分隔。"
+                    "留空则只显示当前模型",
+        store="env", env_key="OPENAI_MODEL_LIST",
+        env_aliases=["DEEPSEEK_MODEL_LIST"],
+    ),
+
+    # ── 接口与密钥 ──────────────────────────────────────────
+    ConfigItem(
+        key="api_base_url", type="text", default="https://api.deepseek.com/v1",
+        label="对话模型 API 地址", category="api",
+        description="兼容 OpenAI 格式的端点地址。保存后立即生效",
+        store="env", env_key="OPENAI_API_BASE_URL",
+        env_aliases=["DEEPSEEK_API_BASE_URL"],
+    ),
+    ConfigItem(
+        key="api_key", type="password", default="",
+        label="对话模型 API Key", category="api",
+        description="留空表示不修改，沿用 .env 中已配置的值。保存后立即生效",
+        store="env", env_key="OPENAI_API_KEY",
+        env_aliases=["DEEPSEEK_API_KEY"], secret=True,
+    ),
+    ConfigItem(
+        key="embed_api_base_url", type="text", default="https://api2.aigcbest.top/v1",
+        label="嵌入/重排 API 地址", category="api",
+        description="Embedding 与 Rerank 共用的端点地址。保存后立即生效",
+        store="env", env_key="EMBED_API_BASE_URL",
+    ),
+    ConfigItem(
+        key="embed_api_key", type="password", default="",
+        label="嵌入/重排 API Key", category="api",
+        description="留空表示不修改，沿用 .env 中已配置的值。保存后立即生效",
+        store="env", env_key="EMBED_API_KEY", env_aliases=["RERANK_API_KEY"],
+        secret=True,
+    ),
+    ConfigItem(
+        key="embed_model", type="text", default="Qwen/Qwen3-Embedding-0.6B",
+        label="嵌入模型", category="api",
+        description="更换后必须重建索引，否则向量维度不匹配（需重启服务）",
+        store="env", env_key="EMBED_MODEL", requires_restart=True,
+    ),
+    ConfigItem(
+        key="rerank_model", type="text", default="Qwen/Qwen3-Reranker-4B",
+        label="重排模型", category="api",
+        description="用于精排候选文档的 Rerank 模型。保存后立即生效",
+        store="env", env_key="RERANK_MODEL",
+    ),
+    ConfigItem(
+        key="rerank_timeout", type="int", default=30,
+        label="重排超时", category="api", unit="秒",
+        description="超时后降级为使用 RRF 融合序，不影响回答生成",
+        min=5, max=180, step=5,
+        store="env", env_key="RERANK_TIMEOUT",
+    ),
+    ConfigItem(
+        key="embed_timeout", type="int", default=60,
+        label="嵌入超时", category="api", unit="秒",
+        description="单次嵌入请求的读取超时。保存后立即生效",
+        min=5, max=300, step=5, advanced=True,
+    ),
+    ConfigItem(
+        key="embed_max_retries", type="int", default=3,
+        label="嵌入重试次数", category="api", unit="次",
+        description="嵌入请求失败后的自动重试次数。保存后立即生效",
+        min=0, max=10, step=1, advanced=True,
     ),
 
     # ── 检索 ────────────────────────────────────────────────
@@ -332,34 +405,34 @@ CONFIG_SCHEMA: List[ConfigItem] = [
         min=0, max=100, step=1, advanced=True,
     ),
 
-    # ── 对话 ────────────────────────────────────────────────
+    # ── 系统:对话 ───────────────────────────────────────────
     ConfigItem(
         key="history_turns", type="int", default=20,
-        label="上下文轮数", category="conversation", unit="条",
+        label="上下文轮数", category="system", section="对话", unit="条",
         description="携带最近多少条历史消息作为上下文",
         min=0, max=100, step=1,
     ),
     ConfigItem(
         key="history_msg_len", type="int", default=500,
-        label="单条历史截断长度", category="conversation", unit="字",
+        label="单条历史截断长度", category="system", section="对话", unit="字",
         description="每条历史消息保留的字数，用于控制 token 消耗",
         min=100, max=2000, step=100,
     ),
     ConfigItem(
         key="conversation_list_limit", type="int", default=50,
-        label="历史列表条数", category="conversation", unit="条",
+        label="历史列表条数", category="system", section="对话", unit="条",
         description="侧边栏一次加载的对话数量",
         min=10, max=500, step=10,
     ),
     ConfigItem(
         key="title_len", type="int", default=20,
-        label="标题截取长度", category="conversation", unit="字",
+        label="标题截取长度", category="system", section="对话", unit="字",
         description="用问题的前 N 字作为新对话的标题",
         min=5, max=100, step=5,
     ),
     ConfigItem(
         key="default_mode", type="select", default="general",
-        label="默认问答模式", category="conversation",
+        label="默认问答模式", category="system", section="对话",
         options=[
             {"value": "general",     "label": "通用问答"},
             {"value": "methodology", "label": "马哲方法论"},
@@ -369,131 +442,63 @@ CONFIG_SCHEMA: List[ConfigItem] = [
     ),
     ConfigItem(
         key="web_search_results", type="int", default=5,
-        label="联网搜索结果数", category="conversation", unit="条",
+        label="联网搜索结果数", category="system", section="对话", unit="条",
         description="启用联网搜索时抓取的网页数量",
         min=1, max=20, step=1,
     ),
     ConfigItem(
         key="web_search_excerpt", type="int", default=200,
-        label="搜索摘要长度", category="conversation", unit="字",
+        label="搜索摘要长度", category="system", section="对话", unit="字",
         description="每条网页结果保留的摘要字数",
         min=50, max=1000, step=50, advanced=True,
     ),
 
-    # ── 缓存 ────────────────────────────────────────────────
+    # ── 系统:缓存 ───────────────────────────────────────────
     ConfigItem(
         key="enable_answer_cache", type="boolean", default=True,
-        label="启用回答缓存", category="cache",
+        label="启用回答缓存", category="system", section="缓存",
         description="相同问题直接返回历史回答，秒级响应且不消耗额度",
     ),
     ConfigItem(
         key="enable_embed_cache", type="boolean", default=True,
-        label="启用向量缓存", category="cache",
+        label="启用向量缓存", category="system", section="缓存",
         description="缓存查询的嵌入向量，避免重复调用嵌入 API",
     ),
     ConfigItem(
         key="max_answer_entries", type="int", default=500,
-        label="回答缓存上限", category="cache", unit="条",
+        label="回答缓存上限", category="system", section="缓存", unit="条",
         description="超出后自动淘汰最旧的记录",
         min=0, max=100000, step=100,
     ),
     ConfigItem(
         key="max_embed_entries", type="int", default=2000,
-        label="向量缓存上限", category="cache", unit="条",
+        label="向量缓存上限", category="system", section="缓存", unit="条",
         description="超出后自动淘汰最旧的记录",
         min=0, max=100000, step=100,
     ),
 
-    # ── 接口 ────────────────────────────────────────────────
-    ConfigItem(
-        key="api_base_url", type="text", default="https://api.deepseek.com/v1",
-        label="对话模型 API 地址", category="api",
-        description="兼容 OpenAI 格式的端点地址。保存后立即生效",
-        store="env", env_key="OPENAI_API_BASE_URL",
-        env_aliases=["DEEPSEEK_API_BASE_URL"],
-    ),
-    ConfigItem(
-        key="api_key", type="password", default="",
-        label="对话模型 API Key", category="api",
-        description="留空表示不修改，沿用 .env 中已配置的值。保存后立即生效",
-        store="env", env_key="OPENAI_API_KEY",
-        env_aliases=["DEEPSEEK_API_KEY"], secret=True,
-    ),
-    ConfigItem(
-        key="embed_api_base_url", type="text", default="https://api2.aigcbest.top/v1",
-        label="嵌入/重排 API 地址", category="api",
-        description="Embedding 与 Rerank 共用的端点地址。保存后立即生效",
-        store="env", env_key="EMBED_API_BASE_URL",
-    ),
-    ConfigItem(
-        key="embed_api_key", type="password", default="",
-        label="嵌入/重排 API Key", category="api",
-        description="留空表示不修改，沿用 .env 中已配置的值。保存后立即生效",
-        store="env", env_key="EMBED_API_KEY", env_aliases=["RERANK_API_KEY"],
-        secret=True,
-    ),
-    ConfigItem(
-        key="embed_model", type="text", default="Qwen/Qwen3-Embedding-0.6B",
-        label="嵌入模型", category="api",
-        description="更换后必须重建索引，否则向量维度不匹配（需重启服务）",
-        store="env", env_key="EMBED_MODEL", requires_restart=True,
-    ),
-    ConfigItem(
-        key="rerank_model", type="text", default="Qwen/Qwen3-Reranker-4B",
-        label="重排模型", category="api",
-        description="用于精排候选文档的 Rerank 模型。保存后立即生效",
-        store="env", env_key="RERANK_MODEL",
-    ),
-    ConfigItem(
-        key="rerank_timeout", type="int", default=30,
-        label="重排超时", category="api", unit="秒",
-        description="超时后降级为使用 RRF 融合序，不影响回答生成",
-        min=5, max=180, step=5,
-        store="env", env_key="RERANK_TIMEOUT",
-    ),
-    ConfigItem(
-        key="embed_timeout", type="int", default=60,
-        label="嵌入超时", category="api", unit="秒",
-        description="单次嵌入请求的读取超时。保存后立即生效",
-        min=5, max=300, step=5, advanced=True,
-    ),
-    ConfigItem(
-        key="embed_max_retries", type="int", default=3,
-        label="嵌入重试次数", category="api", unit="次",
-        description="嵌入请求失败后的自动重试次数。保存后立即生效",
-        min=0, max=10, step=1, advanced=True,
-    ),
-    ConfigItem(
-        key="model_list", type="textarea", default="",
-        label="可选模型列表", category="api",
-        description="设置页下拉框的候选项，格式：模型ID:显示名，多个用英文逗号分隔。"
-                    "留空则只显示当前模型",
-        store="env", env_key="OPENAI_MODEL_LIST",
-        env_aliases=["DEEPSEEK_MODEL_LIST"],
-    ),
-
-    # ── 服务 ────────────────────────────────────────────────
+    # ── 系统:服务 ───────────────────────────────────────────
     ConfigItem(
         key="stream_timeout", type="int", default=60,
-        label="流式响应超时", category="server", unit="秒",
+        label="流式响应超时", category="system", section="服务", unit="秒",
         description="模型持续无输出超过此时长则中断本次流",
         min=10, max=600, step=10, advanced=True,
     ),
     ConfigItem(
         key="stream_queue_size", type="int", default=128,
-        label="流式队列容量", category="server",
+        label="流式队列容量", category="system", section="服务",
         description="SSE 推送队列长度，用于背压控制",
         min=16, max=1024, step=16, advanced=True,
     ),
     ConfigItem(
         key="cors_origins", type="textarea", default="",
-        label="允许的跨域来源", category="server",
+        label="允许的跨域来源", category="system", section="服务",
         description="多个用英文逗号分隔。留空则只允许本机访问",
         store="env", env_key="CORS_ALLOW_ORIGINS", requires_restart=True,
     ),
     ConfigItem(
         key="log_level", type="select", default="INFO",
-        label="日志级别", category="server",
+        label="日志级别", category="system", section="服务",
         options=["DEBUG", "INFO", "WARNING", "ERROR"],
         description="DEBUG 会输出检索细节，便于排查问题但日志量大",
         requires_restart=True,
@@ -502,56 +507,56 @@ CONFIG_SCHEMA: List[ConfigItem] = [
     # ── 原文阅读器 ──────────────────────────────────────────
     ConfigItem(
         key="reader_enabled", type="boolean", default=True,
-        label="启用原文阅读器", category="server",
+        label="启用原文阅读器", category="reader",
         description="关闭后原文查询模式不可用。原文目录缺失时会自动降级",
     ),
     ConfigItem(
         key="reader_corpus_dir", type="text", default="ww",
-        label="原文目录", category="server",
+        label="原文目录", category="reader",
         description="存放原始 Markdown 的目录。相对路径以项目根为基准",
         store="env", env_key="WW_DIR", requires_restart=True,
     ),
     ConfigItem(
         key="reader_page_chars", type="int", default=20000,
-        label="单页正文字数", category="server", unit="字",
+        label="单页正文字数", category="reader", unit="字",
         description="阅读器每次请求返回的正文字数，过大会拖慢首屏",
         min=2000, max=100000, step=1000, advanced=True,
     ),
     ConfigItem(
         key="reader_probe_len", type="int", default=60,
-        label="定位探针长度", category="retrieval", unit="字",
+        label="定位探针长度", category="reader", unit="字",
         description="用片段前 N 字回原文定位。太短易撞见多处，太长易受换行干扰",
         min=20, max=200, step=10, advanced=True,
     ),
     ConfigItem(
         key="reader_search_keywords", type="int", default=5,
-        label="模糊搜索关键词数", category="retrieval", unit="个",
+        label="模糊搜索关键词数", category="reader", unit="个",
         description="阅读器模糊搜索时，让模型从描述中提取几个经典术语",
         min=1, max=10, step=1, advanced=True,
     ),
     ConfigItem(
         key="reader_search_top_k", type="int", default=10,
-        label="模糊搜索结果数", category="retrieval", unit="条",
+        label="模糊搜索结果数", category="reader", unit="条",
         description="阅读器模糊搜索返回多少条候选片段",
         min=3, max=30, step=1,
     ),
 
-    # ── 知识库版本管理（离线数据工程） ─────────────────────
+    # ── 知识库版本管理（离线数据工程，归入检索与知识库） ─────
     ConfigItem(
         key="kb_enabled", type="boolean", default=True,
-        label="启用版本化知识库", category="server",
+        label="启用版本化知识库", category="retrieval",
         description="启动时从 data/releases.json 解析当前知识库版本。"
                     "尚无发布记录时自动回退到 rag/ 目录的传统索引",
     ),
     ConfigItem(
         key="kb_hot_reload", type="boolean", default=True,
-        label="知识库热更新", category="server",
+        label="知识库热更新", category="retrieval",
         description="检测到新版本发布后，后台加载新索引并原子切换，"
                     "无需重启服务",
     ),
     ConfigItem(
         key="kb_builds_keep", type="int", default=3,
-        label="保留构建版本数", category="server", unit="个",
+        label="保留构建版本数", category="retrieval", unit="个",
         description="kb gc 清理时保留最近多少个构建目录",
         min=1, max=20, step=1,
     ),
@@ -685,6 +690,7 @@ class ConfigStore:
                 "max": it.max,
                 "step": it.step,
                 "unit": it.unit,
+                "section": it.section,
                 "secret": it.secret,
                 "is_set": is_set,
                 "advanced": it.advanced,

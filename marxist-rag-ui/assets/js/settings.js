@@ -215,6 +215,11 @@ function createSettingItem(item, onChange, modelOptions) {
 
 /**
  * 渲染某个分类下的所有设置项。
+ *
+ * 支持分类内小节:配置项带 section 时,按 section 分组渲染小节标题
+ * (如"系统"分类下的 对话/缓存/服务),不带 section 的项归入"常规"。
+ * 每节内仍按 基础/高级 两层组织,高级项收进折叠区。
+ *
  * @param {Array} items - 该分类的设置项
  * @param {Function} onChange - 值变化回调
  * @param {Array} modelOptions - 可用模型列表
@@ -223,35 +228,59 @@ function createSettingItem(item, onChange, modelOptions) {
 function renderCategoryItems(items, onChange, modelOptions) {
   const frag = document.createDocumentFragment();
 
-  const basic = items.filter((i) => !i.advanced);
-  const advanced = items.filter((i) => i.advanced);
+  // 按 section 分组:undefined/空归入默认小节,保持声明顺序
+  const sections = new Map();
+  const defaults = [];
+  items.forEach((item) => {
+    if (item.section) {
+      if (!sections.has(item.section)) sections.set(item.section, []);
+      sections.get(item.section).push(item);
+    } else {
+      defaults.push(item);
+    }
+  });
 
-  const group = document.createElement('div');
-  group.className = 'settings-group';
-  basic.forEach((item) => group.appendChild(createSettingItem(item, onChange, modelOptions)));
-  frag.appendChild(group);
+  const renderGroup = (list) => {
+    const basic = list.filter((i) => !i.advanced);
+    const advanced = list.filter((i) => i.advanced);
 
-  // 高级选项收进折叠区，避免不常用的参数干扰主流程
-  if (advanced.length) {
-    const details = document.createElement('details');
-    details.className = 'settings-advanced';
+    const group = document.createElement('div');
+    group.className = 'settings-group';
+    basic.forEach((item) => group.appendChild(createSettingItem(item, onChange, modelOptions)));
+    frag.appendChild(group);
 
-    const summary = document.createElement('summary');
-    summary.className = 'settings-advanced-summary';
-    const arrow = document.createElement('i');
-    arrow.setAttribute('data-lucide', 'chevron-right');
-    const summaryText = document.createElement('span');
-    summaryText.textContent = `高级选项（${advanced.length}）`;
-    summary.append(arrow, summaryText);
-    details.appendChild(summary);
+    // 高级选项收进折叠区，避免不常用的参数干扰主流程
+    if (advanced.length) {
+      const details = document.createElement('details');
+      details.className = 'settings-advanced';
 
-    const advGroup = document.createElement('div');
-    advGroup.className = 'settings-group';
-    advanced.forEach((item) => advGroup.appendChild(createSettingItem(item, onChange, modelOptions)));
-    details.appendChild(advGroup);
+      const summary = document.createElement('summary');
+      summary.className = 'settings-advanced-summary';
+      const arrow = document.createElement('i');
+      arrow.setAttribute('data-lucide', 'chevron-right');
+      const summaryText = document.createElement('span');
+      summaryText.textContent = `高级选项（${advanced.length}）`;
+      summary.append(arrow, summaryText);
+      details.appendChild(summary);
 
-    frag.appendChild(details);
-  }
+      const advGroup = document.createElement('div');
+      advGroup.className = 'settings-group';
+      advanced.forEach((item) => advGroup.appendChild(createSettingItem(item, onChange, modelOptions)));
+      details.appendChild(advGroup);
+
+      frag.appendChild(details);
+    }
+  };
+
+  // 无小节项在前,然后按声明顺序渲染各小节
+  if (defaults.length) renderGroup(defaults);
+  sections.forEach((list, name) => {
+    const heading = document.createElement('div');
+    heading.className = 'settings-section-title';
+    heading.textContent = name;
+    frag.appendChild(heading);
+    renderGroup(list);
+  });
 
   return frag;
 }
