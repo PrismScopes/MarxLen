@@ -178,19 +178,92 @@ class RAGPipeline:
         text = re.sub(r'\n{3,}', '\n\n', text)
         return text.strip()
 
+    @staticmethod
+    def _extract_key_sentences(text: str, budget: int) -> str:
+        """从段落中提取最能代表内容的关键句,控制篇幅
+
+        取段落开头与结尾各一段(经典论述往往首尾点题),
+        中间按句子长度挑选长句(信息密度高)。
+        """
+        if not text:
+            return ""
+        if len(text) <= budget:
+            return text
+
+        # 按标点切句,保留完整句避免截断语义
+        import re as _re
+        sentences = _re.split(r'(?<=[。！？；])', text)
+        sentences = [s.strip() for s in sentences if s.strip()]
+
+        head, tail = [], []
+        half = budget * 0.5
+        used = 0
+        for s in sentences:
+            if used + len(s) > half:
+                break
+            head.append(s)
+            used += len(s)
+        for s in reversed(sentences):
+            if used + len(s) > budget:
+                break
+            tail.insert(0, s)
+            used += len(s)
+        # 中间补齐:仅当预算还充裕时,按原文顺序挑选长句插在头尾之间
+        middle = []
+        for s in sentences[len(head):len(sentences) - len(tail)]:
+            if len(s) < 20 or used + len(s) > budget:
+                continue
+            middle.append(s)
+            used += len(s)
+
+        parts = head + middle + tail
+        joined = "".join(parts).strip()
+        # 无标点/无法切句时 joined 为空,退回硬截断;
+        # 能切出完整句就返回切句结果,绝不用硬截断破坏句子完整性
+        return joined or text[:budget]
+
     def _format_context(self, retrieved_docs: List[Dict]) -> str:
-        """将检索到的多个文档片段，格式化成易于大模型阅读的字符串形式"""
-        formatted_str = ""
-        for i, doc in enumerate(retrieved_docs):
+        """将检索到的多个文档片段，格式化成易于大模型阅读的字符串形式
+
+        预算管理：全部文档累计字数受 context_max_chars 限制。
+        按重排分数(降序)分配——高分文档保留完整，低分文档只保留
+        关键句，避免长上下文稀释模型对高相关文档的注意力。
+        """
+        # 独立测试直接以桩对象调用时可能没有 config,用默认预算兜底
+        try:
+            budget_total = int(self.config.get("context_max_chars"))
+        except Exception:
+            budget_total = 3500
+        if not retrieved_docs or budget_total <= 0:
+            return ""
+
+        # 按重排分数排序(降序),分数缺失的排最后
+        def _score(doc):
+            return doc.get("rerank_score") or doc.get("rrf_score") or 0.0
+        ordered = sorted(retrieved_docs, key=_score, reverse=True)
+
+        # 预计算每篇原始长度,按权重分配预算:
+        # 第一名拿 25%,之后线性衰减,末尾低分文档只给少量
+        n = len(ordered)
+        weights = [max(0.05, 0.25 * (0.7 ** i)) for i in range(n)]
+        wsum = sum(weights)
+        per_doc = [max(200, int(budget_total * w / wsum)) for w in weights]
+
+        formatted_parts = []
+        for i, doc in enumerate(ordered):
             chapter = doc.get('metadata', {}).get('chapter', '')
             title = doc.get('metadata', {}).get('title', '未知标题')
             source = doc.get('metadata', {}).get('source', '').replace('.md', '')
             text = self._clean_text(doc.get('text', ''))
             # 使用实际著作名称作为上下文标记，避免引导 LLM 输出 [来源 N]
             label = chapter or source or title
-            formatted_str += f"《{label}》:\n"
-            formatted_str += f"{text}\n\n"
-        return formatted_str
+            if len(text) > per_doc[i]:
+                text = self._extract_key_sentences(text, per_doc[i])
+            formatted_parts.append(f"《{label}》:\n{text}\n")
+            # 超过预算立即停止,保证总输入受控
+            if sum(len(p) for p in formatted_parts) >= budget_total:
+                break
+        return "\n".join(formatted_parts) + "\n"
 
     def _build_plan(self, question: str, history: Optional[list] = None):
         """执行 RAG_prompt 定义的检索前置分析，产出结构化检索计划
@@ -415,6 +488,45 @@ class RAGPipeline:
                    "text": f"正在检索文献（{channels} 路并行）"}
             docs = self.retriever.retrieve_by_plan(plan, top_k=top_k, fetch_k=fetch_k)
             retrieve_ms = timer.end("retrieve")
+
+            # ── 检索自检 + 定向补检 ───────────────────────────
+            # 覆盖度不足的两种信号:
+            #   1. 命中文档来源文件数过少(说明只在一个角落找到内容)
+            #   2. 无任何 rerank 分数(检索全链降级,结果可信度低)
+            # 此时用核心矛盾(最能代表提问真实意图的表述)单独补一轮检索,
+            # 把新命中的文档合并进来。补检只影响上下文质量,不影响流程。
+            if plan.analysis_ok and docs and \
+                    int(self.config.get("enable_retrieval_check")):
+                core = (plan.core_contradiction or "").strip()
+                sources_hit = {d.get("metadata", {}).get("source", "")
+                               for d in docs if d.get("metadata")}
+                has_score = any(d.get("rerank_score") for d in docs)
+                if core and (len(sources_hit) < 2 or not has_score):
+                    logging.info(
+                        "检索覆盖度不足(来源 %d 个),用核心矛盾补检: %s",
+                        len(sources_hit), core[:40])
+                    timer.start("retrieve_check")
+                    try:
+                        extra = self.retriever.retrieve(
+                            core, top_k=max(2, top_k // 2), fetch_k=fetch_k)
+                        if extra:
+                            # 按 id 去重合并(保留先到的原始结果)
+                            seen = {d.get("id") for d in docs}
+                            for d in extra:
+                                if d.get("id") not in seen:
+                                    docs.append(d)
+                                    seen.add(d.get("id"))
+                            # 重新按 rerank 分数排序,让高分靠前
+                            docs.sort(
+                                key=lambda d: (d.get("rerank_score")
+                                               or d.get("rrf_score") or 0.0),
+                                reverse=True)
+                            docs = docs[:top_k]
+                            logging.info("补检合并后共 %d 篇", len(docs))
+                    except Exception as e:
+                        logging.warning(f"  定向补检失败，沿用原结果: {e}")
+                    retrieve_ms += timer.end("retrieve_check")
+
             yield {"type": "stage", "stage": "retrieve", "status": "done",
                    "elapsed_ms": round(retrieve_ms, 1),
                    "text": f"检索完成，选出 {len(docs)} 篇最相关文献"}

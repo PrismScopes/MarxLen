@@ -217,6 +217,14 @@ CONFIG_SCHEMA: List[ConfigItem] = [
         min=1, max=50, step=1,
     ),
     ConfigItem(
+        key="context_max_chars", type="int", default=3500,
+        label="参考文档总字数上限", category="retrieval", unit="字",
+        description="送入模型的全部参考文档累计字数上限。超出时按重排分数"
+                    "分配预算：分数越高保留越完整，低分文档只保留关键句。"
+                    "防止长上下文稀释模型对高相关文档的注意力",
+        min=800, max=12000, step=200,
+    ),
+    ConfigItem(
         key="fetch_k", type="int", default=30,
         label="候选池大小", category="retrieval", unit="条",
         description="每个检索通道的召回数量。越大越全面，但重排序耗时增加",
@@ -233,6 +241,13 @@ CONFIG_SCHEMA: List[ConfigItem] = [
         label="启用多通道检索", category="retrieval",
         description="将多个假设性命题分别向量检索后融合（HyDE 增强）。"
                     "关闭则退化为单查询检索",
+    ),
+    ConfigItem(
+        key="enable_retrieval_check", type="boolean", default=True,
+        label="启用检索自检与补检", category="retrieval",
+        description="检索结果覆盖度不足(来源文件过少或无重排分)时，"
+                    "用核心矛盾定向补一轮检索合并进上下文，"
+                    "提升多子问题提问的召回完整性",
     ),
     ConfigItem(
         key="max_propositions", type="int", default=3,

@@ -150,3 +150,123 @@ def _write_back(build_id: str, result: Dict):
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
     os.replace(tmp, path)
+
+
+# ======================================================================
+# 生成质量评估（离线、需真实 API；不进 promote 门禁）
+# ======================================================================
+# 召回评估衡量"能不能找到"，生成评估衡量"回答好不好"：
+#   1. 引用覆盖率 —— 回答中实际出现引用行的比例
+#   2. LLM-as-judge —— 用评审模型对回答的忠实度/完整性/清晰度打分
+# 该评估消耗 API 额度，由开发者手动运行：kb eval-gen <build_id>
+
+_JUDGE_PROMPT = """你是一位严格的答案质量评审员。请从三个维度给下面的回答打分（1-5 分，5 为最佳）：
+
+1. 忠实度（faithfulness）：回答是否忠实于检索到的文献内容，没有编造引用、张冠李戴或把自身知识冒充原文；
+2. 完整性（completeness）：是否完整回应了问题的各个层面，而不是只答一半；
+3. 清晰度（clarity）：结构是否清晰、层次是否分明、表达是否易懂。
+
+问题：{question}
+回答：{answer}
+
+只输出 JSON，不要任何其他文字：
+{{"faithfulness": 1-5的整数, "completeness": 1-5的整数, "clarity": 1-5的整数, "comment": "一句话点评"}}"""
+
+
+def evaluate_generation(build_id: str, index_dir: str,
+                        top_k: int = TOP_K,
+                        judge_model: Optional[str] = None) -> Dict:
+    """对 golden 集逐条跑完整生成，输出引用覆盖率与 LLM-as-judge 评分
+
+    参数:
+        judge_model: 评审模型 ID；留空用当前对话模型（config 的 model）。
+        注意:本函数调用真实 LLM,消耗 API 额度,离线手动运行。
+    """
+    golden = load_golden()
+    if not golden:
+        return {"ok": None, "questions": 0, "note": "golden 集为空"}
+
+    from rag.generator import RAGPipeline
+    from rag.config_store import get_config
+
+    cfg = get_config()
+    pipeline = RAGPipeline(index_dir=index_dir)
+    judge = judge_model or cfg.get("model")
+
+    per_question = []
+    coverage_hits = 0
+    coverage_total = 0
+    judge_scores = {"faithfulness": [], "completeness": [], "clarity": []}
+
+    for item in golden:
+        q = item["question"]
+        answer_parts = []
+        try:
+            for evt in pipeline.ask_stream(
+                question=q, top_k=top_k, fetch_k=int(cfg.get("fetch_k")),
+                thinking_effort="off",
+            ):
+                if evt.get("type") == "token":
+                    answer_parts.append(evt.get("content", ""))
+        except Exception as e:
+            logger.warning("生成评估失败 [%s]: %s", q[:20], e)
+            per_question.append({"question": q, "error": str(e)[:100]})
+            continue
+
+        answer = "".join(answer_parts)
+        import re as _re
+        cite_count = len(_re.findall(r'参考自《', answer))
+
+        # LLM-as-judge 评分
+        score = {"faithfulness": None, "completeness": None,
+                 "clarity": None, "comment": ""}
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=cfg.get("api_key"),
+                            base_url=cfg.get("api_base_url"), timeout=30)
+            resp = client.chat.completions.create(
+                model=judge,
+                messages=[{"role": "user", "content": _JUDGE_PROMPT.format(
+                    question=q, answer=answer[:3000])}],
+                temperature=0,
+                response_format={"type": "json_object"},
+            )
+            data = json.loads(resp.choices[0].message.content or "{}")
+            for k in ("faithfulness", "completeness", "clarity"):
+                v = data.get(k)
+                if isinstance(v, (int, float)):
+                    score[k] = int(v)
+                    judge_scores[k].append(int(v))
+            score["comment"] = str(data.get("comment", ""))[:100]
+        except Exception as e:
+            logger.warning("judge 评分失败 [%s]: %s", q[:20], e)
+
+        coverage_hits += 1 if cite_count > 0 else 0
+        coverage_total += 1
+        per_question.append({
+            "question": q, "answer_len": len(answer),
+            "cite_lines": cite_count, "judge": score,
+        })
+
+    n = len(per_question)
+    result = {
+        "ok": True,
+        "questions": n,
+        "coverage": {
+            "with_citation": round(coverage_hits / coverage_total, 4)
+            if coverage_total else 0.0,
+            "avg_cite_lines": round(
+                sum(p.get("cite_lines", 0) for p in per_question) / n, 2)
+            if n else 0.0,
+        },
+        "judge": {
+            key: (round(sum(vals) / len(vals), 2) if vals else None)
+            for key, vals in judge_scores.items()
+        },
+        "per_question": per_question,
+    }
+    logger.info("生成评估完成: 引用覆盖率=%.0f%% judge=%s",
+                result["coverage"]["with_citation"] * 100,
+                result["judge"])
+    _write_back(build_id, result)
+    return result

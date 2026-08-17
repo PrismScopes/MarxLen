@@ -3,3 +3,16 @@
 {"question": "矛盾的特殊性表现在哪些方面？", "expected_sources": ["毛泽东选集十卷合订本.md"], "difficulty": "easy"}
 {"question": "实践和认识是什么关系？", "expected_sources": ["毛泽东选集十卷合订本.md"], "difficulty": "easy"}
 {"question": "什么是辩证法唯物论？", "expected_sources": ["辩证法唯物论——(讲授提纲)(毛泽东).md"], "difficulty": "medium"}
+{"question": "商品的使用价值和价值是什么关系？", "expected_sources": ["马克思恩格斯全集23.md"], "difficulty": "easy"}
+{"question": "劳动力商品的使用价值有什么特殊性？", "expected_sources": ["马克思恩格斯全集23.md"], "difficulty": "medium"}
+{"question": "国家与革命的关系是怎样的？", "expected_sources": ["列宁全集第31卷.md"], "difficulty": "medium"}
+{"question": "什么是物质？哲学上如何理解物质概念？", "expected_sources": ["列宁全集第18卷.md"], "difficulty": "medium"}
+{"question": "认识论中实践第一的观点如何理解？", "expected_sources": ["毛泽东选集十卷合订本.md"], "difficulty": "medium"}
+{"question": "什么是生产力？生产力与生产关系如何相互作用？", "expected_sources": ["毛泽东选集十卷合订本.md", "哲学小词典 上海哲学小辞典编写组 毛主义哲学 Z-Library.md"], "difficulty": "medium"}
+{"question": "马克思如何论述资本积累的一般规律？", "expected_sources": ["马克思恩格斯全集23.md"], "difficulty": "hard"}
+{"question": "什么是矛盾的同一性和斗争性？", "expected_sources": ["毛泽东选集十卷合订本.md"], "difficulty": "medium"}
+{"question": "列宁如何论述帝国主义的五大基本特征？", "expected_sources": ["列宁全集第27卷.md"], "difficulty": "medium"}
+{"question": "什么是价值规律？它在商品经济中如何起作用？", "expected_sources": ["马克思恩格斯全集23.md"], "difficulty": "medium"}
+{"question": "马克思主义哲学如何看待世界的物质统一性？", "expected_sources": ["辩证法唯物论——(讲授提纲)(毛泽东).md", "哲学小词典 上海哲学小辞典编写组 毛主义哲学 Z-Library.md"], "difficulty": "hard"}
+{"question": "斯大林如何论述社会主义经济规律？", "expected_sources": ["斯大林全集 正卷.md"], "difficulty": "hard"}
+{"question": "什么是阶级？阶级产生的根源是什么？", "expected_sources": ["列宁全集第29卷.md"], "difficulty": "medium"}

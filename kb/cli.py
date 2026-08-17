@@ -131,6 +131,26 @@ def cmd_eval(args):
     return 0
 
 
+def cmd_eval_gen(args):
+    from .builder import _load_build_json
+    from .eval import evaluate_generation
+    meta = _load_build_json(args.build_id)
+    if meta is None:
+        print("版本不存在: %s" % args.build_id)
+        return 1
+    print("生成质量评估(消耗 API 额度,耗时较长)...")
+    result = evaluate_generation(
+        args.build_id, meta["index_dir"], judge_model=args.judge_model)
+    print("覆盖率: %s" % result.get("coverage"))
+    print("judge 均分: %s" % result.get("judge"))
+    for p in result.get("per_question", []):
+        print("  - %s (字数 %s, 引用行 %s, judge %s)"
+              % (p.get("question", "?")[:30],
+                 p.get("answer_len"), p.get("cite_lines"),
+                 p.get("judge", {}).get("faithfulness")))
+    return 0
+
+
 def cmd_promote(args):
     from .release import promote
     result = promote(args.build_id, force=args.force)
@@ -184,6 +204,11 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("eval", help="golden 集评估")
     p.add_argument("build_id")
 
+    p = sub.add_parser("eval-gen", help="生成质量评估(引用覆盖率 + LLM 评分,需 API)")
+    p.add_argument("build_id")
+    p.add_argument("--judge-model", default=None,
+                   help="评审模型 ID(默认跟随对话模型)")
+
     p = sub.add_parser("promote", help="发布版本")
     p.add_argument("build_id")
     p.add_argument("--force", action="store_true", help="跳过评估对比软门禁")
@@ -209,6 +234,7 @@ def main(argv=None) -> int:
         "build": cmd_build,
         "verify": cmd_verify,
         "eval": cmd_eval,
+        "eval-gen": cmd_eval_gen,
         "promote": cmd_promote,
         "rollback": cmd_rollback,
         "gc": cmd_gc,

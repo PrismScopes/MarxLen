@@ -276,7 +276,10 @@ export function createChatController(refs, callbacks) {
     const searchPanel = createSearchRefsPanel();
     const loading = createLoadingIndicator();
 
-    msgText.append(thinkingPanel, loading, searchPanel);
+    // 面板顺序(自上而下):阶段提示/解构卡片 → 搜索参考 → 思考 → 正文。
+    // 思考放在"其他提示之后、正文之前",上下关系清楚:
+    // 用户先看到系统在做什么(解构/检索),再看到思考过程,最后是成品。
+    msgText.append(loading, searchPanel, thinkingPanel);
     conversationContainer.appendChild(assistantRow);
     refreshIcons();
     scrollToBottom(chatMessages, true);
@@ -544,11 +547,9 @@ export function createChatController(refs, callbacks) {
         const msgText = $('.msg-text', row);
 
         // 思考过程与解构卡片已随消息落库（后端字段），
-        // 直接还原，不再依赖 localStorage 的序号映射
+        // 直接还原，不再依赖 localStorage 的序号映射。
+        // 面板顺序与流式渲染一致:解构卡片在前,思考在后,正文最后。
         const panels = [];
-        if (msg.thinking_content) {
-          panels.push(createThinkingPanel(msg.thinking_content, true));
-        }
 
         // 还原问题解构卡片。SSE 期间它挂在 .thinking-steps 容器里，
         // 这里用同样的容器包一层，位置和样式才与生成时一致
@@ -561,6 +562,9 @@ export function createChatController(refs, callbacks) {
             box.appendChild(card);
             panels.push(box);
           }
+        }
+        if (msg.thinking_content) {
+          panels.push(createThinkingPanel(msg.thinking_content, true));
         }
 
         renderAnswer(msgText, msg.content || '', panels);
