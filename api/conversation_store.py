@@ -3,6 +3,7 @@ import json
 import uuid
 import sqlite3
 import logging
+import threading
 from datetime import datetime
 from typing import List, Optional
 
@@ -39,6 +40,11 @@ class ConversationStore:
     def __init__(self, db_path: str = CONVERSATIONS_DB_PATH):
         self.db_path = db_path
         self._conn: Optional[sqlite3.Connection] = None
+        # 写锁：串行化 add_message 的「计数 + 插入」事务。
+        # SQLite 单连接上并发执行显式 BEGIN IMMEDIATE 会互相冲突
+        # （cannot start a transaction within a transaction），
+        # 用进程内锁把写路径串起来最稳妥。
+        self._write_lock = threading.Lock()
         self._init_db()
 
     def _init_db(self):
@@ -60,6 +66,8 @@ class ConversationStore:
                 role            TEXT NOT NULL,
                 content         TEXT NOT NULL,
                 sources         TEXT DEFAULT '[]',
+                thinking_content TEXT DEFAULT '',
+                stage_detail     TEXT DEFAULT '',
                 created_at      TEXT NOT NULL,
                 FOREIGN KEY (conversation_id) REFERENCES conversations(id)
             )
@@ -85,6 +93,13 @@ class ConversationStore:
             self._conn.execute(
                 "ALTER TABLE messages ADD COLUMN variant_index INTEGER NOT NULL DEFAULT 0"
             )
+        # 思考过程 / 问题解构卡片随消息落库（老库补列，空字符串表示无内容）
+        if "thinking_content" not in cols:
+            self._conn.execute(
+                "ALTER TABLE messages ADD COLUMN thinking_content TEXT DEFAULT ''")
+        if "stage_detail" not in cols:
+            self._conn.execute(
+                "ALTER TABLE messages ADD COLUMN stage_detail TEXT DEFAULT ''")
 
         conv_cols = {r[1] for r in self._conn.execute("PRAGMA table_info(conversations)")}
         if "active_leaf_id" not in conv_cols:
@@ -216,7 +231,8 @@ class ConversationStore:
             seen.add(cur)
 
             r = self._conn.execute(
-                "SELECT id, role, content, sources, created_at, parent_id, variant_index "
+                "SELECT id, role, content, sources, created_at, parent_id, "
+                "variant_index, thinking_content, stage_detail "
                 "FROM messages WHERE id = ? AND conversation_id = ?",
                 (cur, conv_id)
             ).fetchone()
@@ -245,14 +261,16 @@ class ConversationStore:
             ).fetchall()
 
         ids = [r[0] for r in rows]
-        try:
-            return len(ids), ids.index(msg_id)
-        except ValueError:
-            return len(ids) or 1, 0
+        if msg_id not in ids:
+            # 消息不属于该层（数据异常）：返回占位值而不是抛错，
+            # 前端切换器按 variant_count<=1 隐藏，不会显示错误序号
+            return max(1, len(ids)), 0
+        return len(ids), ids.index(msg_id)
 
     def _to_message(self, row: tuple) -> Message:
         """把数据库行转成 Message，并补上版本信息"""
-        msg_id, role, content, sources_raw, _created, parent_id, _vi = row
+        (msg_id, role, content, sources_raw, _created,
+         parent_id, _vi, thinking_raw, stage_raw) = row
 
         sources_data = []
         try:
@@ -269,6 +287,16 @@ class ConversationStore:
         ).fetchone()[0]
         total, index = self._variant_info(conv_id, parent_id, msg_id)
 
+        # 解构卡片：损坏的 JSON 不影响正文返回，按无卡片处理
+        stage_detail = None
+        if stage_raw:
+            try:
+                sd = json.loads(stage_raw)
+                if isinstance(sd, dict):
+                    stage_detail = sd
+            except (json.JSONDecodeError, TypeError):
+                pass
+
         return Message(
             id=msg_id,
             role=role,
@@ -277,12 +305,16 @@ class ConversationStore:
             parent_id=parent_id,
             variant_count=total,
             variant_index=index,
+            thinking_content=thinking_raw or "",
+            stage_detail=stage_detail,
         )
 
     def add_message(self, conv_id: str, role: str, content: str,
                     sources: Optional[List[SourceItem]] = None,
                     parent_id: Optional[int] = None,
-                    branch: bool = False) -> Message:
+                    branch: bool = False,
+                    thinking_content: str = "",
+                    stage_detail: Optional[dict] = None) -> Message:
         """添加消息
 
         参数:
@@ -290,44 +322,63 @@ class ConversationStore:
             branch:    True 表示在 parent 下新开一个版本（修改提问/重新生成），
                        此时 parent_id 必须显式指定（根层版本传 None 也可以，
                        靠 branch 标志区分「接在末尾」和「根层新版本」）
+            thinking_content: 思考过程文本（思考档生成时非空，随消息落库）
+            stage_detail:     问题解构卡片数据（检索前置分析结果）
 
         写入后这条消息即成为新的激活叶子，所以发送方无需再手动切分支。
+
+        并发安全：计数 + 插入在同一个写事务内完成。若不这样做，
+        两个请求并发落库时可能读到相同的 variant_index，版本切换器错乱。
         """
         now = self._now()
         sources_json = json.dumps(
             [s.model_dump() for s in sources], ensure_ascii=False
         ) if sources else "[]"
+        stage_json = json.dumps(stage_detail, ensure_ascii=False) \
+            if stage_detail else ""
 
         if not branch and parent_id is None:
             parent_id = self._active_leaf(conv_id)
 
-        # 同层已有几个版本，新的排在最后
-        if parent_id is None:
-            cnt = self._conn.execute(
-                "SELECT COUNT(*) FROM messages "
-                "WHERE conversation_id = ? AND parent_id IS NULL",
-                (conv_id,)
-            ).fetchone()[0]
-        else:
-            cnt = self._conn.execute(
-                "SELECT COUNT(*) FROM messages "
-                "WHERE conversation_id = ? AND parent_id = ?",
-                (conv_id, parent_id)
-            ).fetchone()[0]
+        # 同层版本计数与插入必须在同一事务内，避免并发时序号重复。
+        # 写锁串行化整个事务：单连接上并发 BEGIN IMMEDIATE 会冲突，
+        # 锁内保证同一时刻只有一个写事务在推进。
+        with self._write_lock:
+            self._conn.execute("BEGIN IMMEDIATE")
+            try:
+                if parent_id is None:
+                    cnt = self._conn.execute(
+                        "SELECT COUNT(*) FROM messages "
+                        "WHERE conversation_id = ? AND parent_id IS NULL",
+                        (conv_id,)
+                    ).fetchone()[0]
+                else:
+                    cnt = self._conn.execute(
+                        "SELECT COUNT(*) FROM messages "
+                        "WHERE conversation_id = ? AND parent_id = ?",
+                        (conv_id, parent_id)
+                    ).fetchone()[0]
 
-        cur = self._conn.execute(
-            "INSERT INTO messages "
-            "(conversation_id, role, content, sources, created_at, parent_id, variant_index) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (conv_id, role, content, sources_json, now, parent_id, cnt)
-        )
-        msg_id = cur.lastrowid
+                cur = self._conn.execute(
+                    "INSERT INTO messages "
+                    "(conversation_id, role, content, sources, thinking_content, "
+                    " stage_detail, created_at, parent_id, variant_index) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (conv_id, role, content, sources_json,
+                     thinking_content or "", stage_json,
+                     now, parent_id, cnt)
+                )
+                msg_id = cur.lastrowid
 
-        self._conn.execute(
-            "UPDATE conversations SET updated_at = ?, active_leaf_id = ? WHERE id = ?",
-            (now, msg_id, conv_id)
-        )
-        self._conn.commit()
+                self._conn.execute(
+                    "UPDATE conversations SET updated_at = ?, active_leaf_id = ? "
+                    "WHERE id = ?",
+                    (now, msg_id, conv_id)
+                )
+                self._conn.commit()
+            except Exception:
+                self._conn.rollback()
+                raise
 
         return Message(
             id=msg_id,
@@ -337,6 +388,8 @@ class ConversationStore:
             parent_id=parent_id,
             variant_count=cnt + 1,
             variant_index=cnt,
+            thinking_content=thinking_content or "",
+            stage_detail=stage_detail,
         )
 
     def _active_leaf(self, conv_id: str) -> Optional[int]:
@@ -345,10 +398,35 @@ class ConversationStore:
         ).fetchone()
         return row[0] if row else None
 
+    def update_message(self, conv_id: str, msg_id: int, content: str,
+                       sources: Optional[List[SourceItem]] = None,
+                       thinking_content: str = "",
+                       stage_detail: Optional[dict] = None) -> bool:
+        """更新消息内容与附件字段（生成中快照 / 结束时最终落库）
+
+        单条 UPDATE 天然原子，无需显式事务。
+        返回是否真的更新了行。
+        """
+        sources_json = json.dumps(
+            [s.model_dump() for s in sources], ensure_ascii=False
+        ) if sources else "[]"
+        stage_json = json.dumps(stage_detail, ensure_ascii=False) \
+            if stage_detail else ""
+        cur = self._conn.execute(
+            "UPDATE messages SET content = ?, sources = ?, "
+            "thinking_content = ?, stage_detail = ? "
+            "WHERE id = ? AND conversation_id = ?",
+            (content, sources_json, thinking_content or "", stage_json,
+             msg_id, conv_id)
+        )
+        self._conn.commit()
+        return cur.rowcount > 0
+
     def get_message(self, conv_id: str, msg_id: int) -> Optional[tuple]:
         """按 id 取一条消息的原始行，顺带校验它属于该对话"""
         return self._conn.execute(
-            "SELECT id, role, content, sources, created_at, parent_id, variant_index "
+            "SELECT id, role, content, sources, created_at, parent_id, "
+            "variant_index, thinking_content, stage_detail "
             "FROM messages WHERE id = ? AND conversation_id = ?",
             (msg_id, conv_id)
         ).fetchone()
@@ -362,14 +440,16 @@ class ConversationStore:
         parent_id = row[5]
         if parent_id is None:
             rows = self._conn.execute(
-                "SELECT id, role, content, sources, created_at, parent_id, variant_index "
+                "SELECT id, role, content, sources, created_at, parent_id, "
+                "variant_index, thinking_content, stage_detail "
                 "FROM messages WHERE conversation_id = ? AND parent_id IS NULL "
                 "ORDER BY variant_index ASC, id ASC",
                 (conv_id,)
             ).fetchall()
         else:
             rows = self._conn.execute(
-                "SELECT id, role, content, sources, created_at, parent_id, variant_index "
+                "SELECT id, role, content, sources, created_at, parent_id, "
+                "variant_index, thinking_content, stage_detail "
                 "FROM messages WHERE conversation_id = ? AND parent_id = ? "
                 "ORDER BY variant_index ASC, id ASC",
                 (conv_id, parent_id)

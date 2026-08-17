@@ -83,6 +83,25 @@ class RAGPipeline:
         self.main_prompt = load_main_prompt()
         self.rag_prompt = load_rag_prompt()
 
+        # 主提示词作为 system message，用户输入与检索结果作为 user message。
+        # 这样分离的好处：思考方法论属于模型的固有设定，不随每轮输入变化，
+        # 也避免了长篇方法论淹没在用户消息里被模型轻视。
+        template = """{plan_context}
+{search_context}
+{history_context}【参考文档】：
+{context}
+
+---
+
+请依据上述结构化数据与参考文档，回答用户的问题：
+
+{question}
+"""
+        self.prompt = ChatPromptTemplate.from_messages([
+            ("system", "{main_prompt}"),
+            ("human", template),
+        ])
+
         # 最近一次请求的耗时快照(设置页性能统计读取)
         self._last_timings = None
 
@@ -116,25 +135,6 @@ class RAGPipeline:
         self.model_name = self.config.get("model")
         self._build_llm_clients()
         logging.info("对话 API 客户端已重建: model=%s", self.model_name)
-
-        # 主提示词作为 system message，用户输入与检索结果作为 user message。
-        # 这样分离的好处：思考方法论属于模型的固有设定，不随每轮输入变化，
-        # 也避免了长篇方法论淹没在用户消息里被模型轻视。
-        template = """{plan_context}
-{search_context}
-{history_context}【参考文档】：
-{context}
-
----
-
-请依据上述结构化数据与参考文档，回答用户的问题：
-
-{question}
-"""
-        self.prompt = ChatPromptTemplate.from_messages([
-            ("system", "{main_prompt}"),
-            ("human", template),
-        ])
 
     def swap_retriever(self, new_retriever, kb_build_id: str = ""):
         """原子替换检索器（知识库热更新入口，由 kb.watcher 调用）

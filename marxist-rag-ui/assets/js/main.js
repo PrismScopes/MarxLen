@@ -10,11 +10,11 @@ import { MODE_DESCRIPTIONS, TEXTAREA_MAX_HEIGHT, FALLBACK_MODEL } from './config
 import * as api from './api.js';
 import {
   state, setThinkingEffort, applyDefaultThinkingEffort,
-  setSearchMode, getThinkingContents,
+  setSearchMode,
 } from './store.js';
 import { initMarkdown } from './markdown.js';
 import { initTheme } from './theme.js';
-import { initDialogGlobalHandlers } from './dialogs.js';
+import { initDialogGlobalHandlers, showInputDialog, showConfirmDialog } from './dialogs.js';
 import { updateTimeline, highlightTimeline } from './messages.js';
 import { renderHistory, highlightActive } from './history.js';
 import { loadSettings } from './settings.js';
@@ -122,6 +122,8 @@ function openSettings() {
       if (model) selectModel(model);
     },
     state.availableModels,
+    // 模型管理卡里增删模型后,刷新主界面的模型下拉
+    () => loadModels(),
   );
 }
 
@@ -205,6 +207,15 @@ function renderModelModal() {
     refs.modelModalModelList.appendChild(item);
   });
 
+  // ── 添加自定义模型入口 ──
+  const addItem = document.createElement('div');
+  addItem.className = 'model-modal-add';
+  addItem.setAttribute('role', 'button');
+  addItem.textContent = '＋ 添加自定义模型';
+  addItem.title = '直接输入模型 ID 添加，无需编辑配置文件';
+  addItem.addEventListener('click', () => addCustomModel());
+  refs.modelModalModelList.appendChild(addItem);
+
   // ── 推理等级组 ──
   refs.modelModalEffortList.innerHTML = '';
   EFFORT_ORDER.forEach((effort) => {
@@ -279,18 +290,76 @@ function selectEffort(effort) {
 }
 
 /**
+ * 在 GUI 中直接添加自定义模型(快捷方式)。
+ *
+ * 与设置页的模型管理共用同一后端端点 POST /api/models:
+ * 对话框填模型 ID 与显示名 → 后端追加到 OPENAI_MODEL_LIST
+ * (重复 id 自动更新显示名)→ 重新拉取模型列表 →
+ * 新模型立即出现在弹窗列表并自动选中。
+ */
+async function addCustomModel() {
+  const result = await showInputDialog({
+    title: '添加自定义模型',
+    fields: [
+      { key: 'id', label: '模型 ID', placeholder: '如 deepseek-v4-flash' },
+      { key: 'name', label: '显示名', placeholder: '如 DeepSeek-V4-Flash' },
+    ],
+    confirmText: '添加',
+  });
+  if (!result || !result.id) return;
+
+  const modelId = result.id.trim();
+  const displayName = result.name.trim() || modelId;
+
+  // 已存在:直接选中,不重复添加
+  if (state.availableModels.some((m) => m.id === modelId)) {
+    selectModel({ id: modelId, name: displayName });
+    return;
+  }
+
+  try {
+    await api.addModel(modelId, displayName);
+    // 后端已写入配置,重新拉取模型列表并选中新模型
+    await loadModels();
+    selectModel({ id: modelId, name: displayName });
+  } catch (err) {
+    console.error('添加模型失败:', err);
+    showConfirmDialog({
+      title: '添加模型失败',
+      message: err.message || String(err),
+      confirmText: '知道了',
+    });
+  }
+}
+
+/**
  * 拉取模型列表，失败时用兜底模型。
+ * 优先恢复后端记录的当前生效模型(current)——用户切换过模型后
+ * 刷新页面也能保持选择,而不是默认选列表第一个。
+ * 后端没记 current 或 current 不在列表时,回退保留原选择;
+ * 再不行才选列表第一个。
  */
 async function loadModels() {
+  const oldModel = state.currentModel;
+  let backendCurrent = null;
+  let models = [];
   try {
-    const models = await api.listModels();
-    state.availableModels = models.length ? models : [FALLBACK_MODEL];
+    const data = await api.listModels();
+    models = data.models || [];
+    backendCurrent = data.current || null;
   } catch (err) {
     console.error('加载模型列表失败:', err);
-    state.availableModels = [FALLBACK_MODEL];
   }
-  const first = state.availableModels[0];
-  state.currentModel = first.id;
+  state.availableModels = models.length ? models : [FALLBACK_MODEL];
+
+  if (backendCurrent && state.availableModels.some((m) => m.id === backendCurrent)) {
+    state.currentModel = backendCurrent;
+  } else if (oldModel && state.availableModels.some((m) => m.id === oldModel)) {
+    state.currentModel = oldModel;
+  } else {
+    const first = state.availableModels[0];
+    state.currentModel = first ? first.id : null;
+  }
   updateModelSelectorLabel();
   renderModelModal();
 }
@@ -441,7 +510,8 @@ function refreshHistory() {
 async function openConversation(convId) {
   try {
     const detail = await api.getConversation(convId);
-    chat.renderConversation(convId, getThinkingContents(convId), detail.messages || []);
+    // 思考内容与解构卡片随消息从后端返回，无需再传 localStorage 数据
+    chat.renderConversation(convId, detail.messages || []);
     highlightActive(convId);
     if (isMobile()) closeSidebar();
   } catch (err) {

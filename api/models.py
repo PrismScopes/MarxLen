@@ -32,19 +32,16 @@ class ChatRequest(BaseModel):
     regenerate_of: Optional[int] = None
 
 
-class ChatResponse(BaseModel):
-    """聊天响应"""
-    answer: str
-    sources: List[SourceItem] = []
-    conversation_id: str = ""
-
-
 class Message(BaseModel):
     """单条消息
 
     variant_count / variant_index 供前端渲染「< 2/2 >」版本切换器：
     同一个 parent 下有多少个版本、当前显示的是第几个（从 0 起）。
     variant_count == 1 时前端不必显示切换器。
+
+    thinking_content / stage_detail 是"会话的一部分"而不是浏览器
+    临时数据：思考过程与问题解构卡片随消息落库，刷新页面 / 切换
+    版本 / 重新生成后都能完整还原，不再依赖 localStorage。
     """
     id: Optional[int] = None
     role: str  # user / assistant
@@ -53,6 +50,8 @@ class Message(BaseModel):
     parent_id: Optional[int] = None
     variant_count: int = 1
     variant_index: int = 0
+    thinking_content: str = ""           # 思考过程（仅思考档非空）
+    stage_detail: Optional[dict] = None  # 问题解构卡片数据（检索前置分析）
 
 
 class MessageVariants(BaseModel):
@@ -104,6 +103,47 @@ class ModelOption(BaseModel):
 class ModelUpdateRequest(BaseModel):
     """更新模型请求"""
     model: str
+
+
+class ModelAddRequest(BaseModel):
+    """添加模型请求(写入 OPENAI_MODEL_LIST)"""
+    id: str
+    name: str = ""   # 留空则显示名取模型 ID
+
+
+def parse_model_list(raw: str) -> list:
+    """解析 OPENAI_MODEL_LIST 字符串为 [{id, name}]
+
+    格式: "id1:显示名1,id2:显示名2";无冒号时显示名取 ID。
+    纯函数,无副作用,供路由与测试共用。
+    """
+    items = []
+    for part in (raw or "").split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if ":" in part:
+            mid, name = part.split(":", 1)
+            mid, name = mid.strip(), name.strip()
+        else:
+            mid, name = part, part
+        items.append({"id": mid, "name": name})
+    return items
+
+
+def serialize_model_list(items: list) -> str:
+    """把 [{id, name}] 序列化为 "id1:name1,id2:name2"
+
+    显示名同 ID 时省略冒号部分;空 ID 条目丢弃。
+    """
+    parts = []
+    for it in items:
+        mid = (it.get("id") or "").strip()
+        name = (it.get("name") or "").strip()
+        if not mid:
+            continue
+        parts.append(mid if name == mid or not name else f"{mid}:{name}")
+    return ",".join(parts)
 
 
 # ── 设置相关模型 ─────────────────────────────────

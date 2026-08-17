@@ -4,13 +4,13 @@
  * 负责发起请求、消费 SSE 流、驱动界面更新。
  * 这里修掉了原版两个关键缺陷：
  *   1. 用户切换对话时不再丢弃流数据（只是不写 DOM）；
- *   2. 思考内容按正确的序号持久化。
+ *   2. 思考内容与解构卡片改由后端随消息落库（刷新不丢），
+ *      不再按"消息序号"存 localStorage。
  */
 
 import * as api from './api.js';
 import {
-  state, isSwitchedAway, saveThinkingContent, getThinkingContents,
-  saveStageDetail, getStageDetails,
+  state, isSwitchedAway,
 } from './store.js';
 import { STREAM_RENDER } from './config.js';
 import { $, $$, refreshIcons, scrollToBottom } from './dom-utils.js';
@@ -47,17 +47,6 @@ export function createChatController(refs, callbacks) {
    * 把这一轮的节点留在这里，切回时原样接回去。
    */
   let activeStream = null;
-
-  /**
-   * 统计当前会话里已有多少条助手回答。
-   * 用于给思考内容分配正确的存储序号——
-   * 原版查询的 '.assistant-bubble' 类名根本不存在，
-   * 长度恒为 0，导致每轮思考都覆盖同一个槽位。
-   * @returns {number}
-   */
-  function countAssistantMessages() {
-    return $$('.message-row.assistant-message', conversationContainer).length;
-  }
 
   /**
    * 切换发送/停止按钮的显示状态。
@@ -190,7 +179,6 @@ export function createChatController(refs, callbacks) {
       const detail = await api.switchVariant(state.currentConversationId, target.id);
       renderConversation(
         state.currentConversationId,
-        getThinkingContents(state.currentConversationId),
         detail.messages || [],
       );
     } catch (err) {
@@ -281,10 +269,6 @@ export function createChatController(refs, callbacks) {
     textarea.disabled = true;
     setStreamingUI(true);
 
-    // 记录这轮回答的序号，供思考内容持久化使用。
-    // 必须在插入助手消息之前取，否则会多算一条。
-    const answerIndex = countAssistantMessages();
-
     const assistantRow = createAssistantMessage();
     const msgText = $('.msg-text', assistantRow);
 
@@ -307,10 +291,6 @@ export function createChatController(refs, callbacks) {
     let fullAnswer = '';
     let thinkingText = '';
     let sources = [];
-    // 问题解构结果。后端只在 stage 事件里给一次、且不入库，
-    // 这里先接住，done 时连同对话 id 一起存进 localStorage，
-    // 否则刷新页面后卡片就永久消失了
-    let stageDetail = null;
     // done 事件带回的消息树字段，收到后才知道要不要渲染版本切换器
     let doneMeta = null;
     // 本轮用户消息的 id，编辑重发后要靠它刷新用户行的切换器
@@ -351,7 +331,6 @@ export function createChatController(refs, callbacks) {
           // 后端逐阶段汇报进度，首个反馈 0.04s 就到，
           // 而正文第一个字要等 20 秒，这段等待靠它撑住
           updateLoadingStage(loading, data);
-          if (data.detail) stageDetail = data.detail;
           if (!muted) scrollToBottom(chatMessages);
         } else if (event === 'thinking' && data.content) {
           thinkingText += data.content;
@@ -420,18 +399,9 @@ export function createChatController(refs, callbacks) {
             userRow.dataset.msgId = String(data.user_message_id);
             userMsgId = data.user_message_id;
           }
-          // 落库用 done 事件带回的 id，不要读 state：
-          // 用户在生成期间切换对话会改动 state 里的 id，
-          // 那会把思考内容存到别的对话名下、或者因为 id 为空直接丢弃
-          const convIdForSave = data.conversation_id || state.streamingConvId;
-          if (data.thinking_content && convIdForSave) {
-            saveThinkingContent(convIdForSave, answerIndex, data.thinking_content);
-          }
-          // 解构结果同理：后端不入库，只有存进 localStorage
-          // 刷新页面后才能把卡片还原出来
-          if (stageDetail && convIdForSave) {
-            saveStageDetail(convIdForSave, answerIndex, stageDetail);
-          }
+          // 思考内容与解构卡片不再存 localStorage：
+          // 后端 done 时已随消息落库（thinking_content / stage_detail），
+          // 刷新页面后由 renderConversation 从后端消息对象还原。
         } else if (event === 'error') {
           throw new Error(data.detail || '未知错误');
         }
@@ -540,17 +510,13 @@ export function createChatController(refs, callbacks) {
   /**
    * 加载一个历史对话并渲染。
    * @param {string} convId - 对话 ID
-   * @param {Object<string, string>} thinkingContents - 该对话保存的思考文本
-   * @param {Array} messages - 消息列表
+   * @param {Array} messages - 消息列表（含 thinking_content / stage_detail）
    */
-  function renderConversation(convId, thinkingContents, messages) {
+  function renderConversation(convId, messages) {
     state.currentConversationId = convId;
     state.lastQuestion = '';
     showConversationView();
     conversationContainer.innerHTML = '';
-
-    // 解构结果只存在前端，按"第几条助手回答"编号取回
-    const stageDetails = getStageDetails(convId);
 
     // 切回正在生成的那个对话：后端还没落库这一轮，
     // 拉回来的 messages 里没有正在流式的回答，
@@ -558,7 +524,6 @@ export function createChatController(refs, callbacks) {
     const resuming = activeStream && state.isStreaming
       && state.streamingConvId === convId;
 
-    let assistantIdx = 0;
     messages.forEach((msg) => {
       // 正在流式的这一轮已经有现成节点了，跳过后端返回的同一条，
       // 否则用户消息会重复出现两次
@@ -578,13 +543,16 @@ export function createChatController(refs, callbacks) {
         setRowMessageMeta(row, msg);
         const msgText = $('.msg-text', row);
 
-        const think = thinkingContents[String(assistantIdx)];
+        // 思考过程与解构卡片已随消息落库（后端字段），
+        // 直接还原，不再依赖 localStorage 的序号映射
         const panels = [];
-        if (think) panels.push(createThinkingPanel(think, true));
+        if (msg.thinking_content) {
+          panels.push(createThinkingPanel(msg.thinking_content, true));
+        }
 
         // 还原问题解构卡片。SSE 期间它挂在 .thinking-steps 容器里，
         // 这里用同样的容器包一层，位置和样式才与生成时一致
-        const detail = stageDetails[String(assistantIdx)];
+        const detail = msg.stage_detail;
         if (detail) {
           const card = createStageDetail(detail);
           if (card) {
@@ -594,7 +562,6 @@ export function createChatController(refs, callbacks) {
             panels.push(box);
           }
         }
-        assistantIdx++;
 
         renderAnswer(msgText, msg.content || '', panels);
         conversationContainer.appendChild(row);

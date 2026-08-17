@@ -9,8 +9,7 @@ import { $, $$, refreshIcons } from './dom-utils.js';
 import * as api from './api.js';
 import {
   state, getFolders, saveFolders, getFolderMap,
-  addFolder, removeFolder, moveConversationToFolder, clearThinkingContents,
-  clearStageDetails,
+  addFolder, removeFolder, moveConversationToFolder,
 } from './store.js';
 import {
   showInputDialog, showConfirmDialog, showFolderPickerDialog, showContextMenu,
@@ -110,8 +109,8 @@ function openConversationMenu(anchor, conv, handlers) {
         if (!ok) return;
         try {
           await api.deleteConversation(conv.id);
-          clearThinkingContents(conv.id);
-          clearStageDetails(conv.id);
+          // 思考内容/解构卡片随消息在后端级联删除，
+          // 无需再手动清理 localStorage（那里已不再存这些数据）
           if (conv.id === state.currentConversationId) handlers.onDeleteCurrent();
           handlers.onRefresh();
         } catch (err) {

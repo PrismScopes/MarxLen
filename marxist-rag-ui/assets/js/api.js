@@ -146,8 +146,8 @@ export function deleteConversation(convId) {
 // ── 模型与设置 ──────────────────────────────────────────────
 
 /**
- * 获取可用模型列表。
- * @returns {Promise<Array>} - [{ id, name, provider }]
+ * 获取可用模型列表与当前生效模型。
+ * @returns {Promise<{current: string, models: Array<{id,name,provider}>}>}
  */
 export function listModels() {
   return request('/models');
@@ -160,6 +160,25 @@ export function listModels() {
  */
 export function saveModel(model) {
   return request('/settings/model', jsonBody('POST', { model }));
+}
+
+/**
+ * 添加模型到可选列表(GUI 直接管理,无需手编 .env)。
+ * @param {string} id - 模型 ID
+ * @param {string} [name] - 显示名,留空取 ID
+ * @returns {Promise<Object>} - { ok, added, models }
+ */
+export function addModel(id, name) {
+  return request('/models', jsonBody('POST', { id, name: name || '' }));
+}
+
+/**
+ * 从可选列表移除模型。
+ * @param {string} id - 模型 ID
+ * @returns {Promise<Object>} - { ok, removed, models }
+ */
+export function removeModel(id) {
+  return request(`/models/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
 
 /**

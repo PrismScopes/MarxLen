@@ -13,12 +13,13 @@ from fastapi.responses import StreamingResponse
 from sse_starlette.sse import EventSourceResponse
 
 from .models import (
-    ChatRequest, ChatResponse, SourceItem,
+    ChatRequest,
     Conversation, ConversationDetail, ConversationRenameRequest,
     MessageVariants, SwitchVariantRequest,
-    ModelOption, ModelUpdateRequest,
+    ModelOption, ModelUpdateRequest, ModelAddRequest,
     SettingsUpdateRequest, SettingsResetRequest, CacheClearRequest,
     ApiTestRequest, StatsResponse,
+    parse_model_list, serialize_model_list,
 )
 from .conversation_store import ConversationStore
 from .settings_store import SettingsStore
@@ -126,15 +127,17 @@ async def chat(request: ChatRequest):
         logging.info(f"  上下文: {len(history)} 条历史消息")
 
     async def event_generator():
-        """SSE 事件生成器"""
+        """SSE 事件生成器
+
+        数据累积与落库全部在生成线程(run_generator)内完成;
+        本协程只做转发,客户端刷新断开(CancelledError)不影响落库。
+        """
         try:
             from rag.telemetry import set_request_id, perf_recorder
             set_request_id(request_id)   # 协程侧日志带 request_id
-            full_answer = ""
-            thinking_content = ""
+            # 以下变量仅用于 done 事件回显,内容由生成线程经队列带过来
             sources_data = []
             search_refs = []
-            thinking_done_sent = False
             done_timings = None
             done_ref_report = None
 
@@ -144,16 +147,81 @@ async def chat(request: ChatRequest):
                 "data": json.dumps({"request_id": request_id}, ensure_ascii=False),
             }
 
-            # 调用 RAG 流式接口（在线程中运行同步生成器，避免阻塞事件循环）
+            # ── 流开始前先插入占位助手消息 ──────────────────────
+            # 生成过程可能持续几十秒,期间用户刷新页面时后端必须已有一条
+            # 助手消息存在,否则"只有用户消息、没有回答"的会话看起来像数据
+            # 丢失。这里先插入空消息拿到 message_id,生成线程在跑的同时
+            # 用节流快照不断更新它的内容,结束时做最终落库。
+            placeholder = conv_store.add_message(
+                conv_id, "assistant", "", sources=[],
+                parent_id=user_msg_id, branch=branch,
+            )
+            assistant_msg_id = placeholder.id
+            assistant_variant_count = placeholder.variant_count
+            assistant_variant_index = placeholder.variant_index
+
             fetch_k = int(config.get("fetch_k"))
             top_k = int(config.get("top_k"))
 
             loop = asyncio.get_running_loop()
             queue = asyncio.Queue(maxsize=int(config.get("stream_queue_size")))
 
+            # ── 生成线程:累积 + 节流快照 + 最终落库 ─────────────
+            # 关键设计:数据累积与落库全部发生在这个线程里,而不是 SSE
+            # 协程里。客户端刷新断开连接只会取消协程(CancelledError),
+            # 线程照常跑到生成结束并完成落库——完整答案、来源、思考过程
+            # 最终一定写入数据库,不会因为刷新而丢失。
             def run_generator():
                 from rag.telemetry import set_request_id as _set_rid
                 _set_rid(request_id)     # 生成线程侧日志带 request_id
+                full_answer = ""
+                thinking_content = ""
+                sources_data = []
+                stage_detail = None
+                # 快照节流:思考/正文累积期间周期性落库。
+                # 频率取"时间间隔"与"字数增量"两者先到者。
+                _snapshot_last = time.monotonic()
+                _snapshot_len = 0
+                _INTERVAL = 2.0     # 秒
+                _CHARS = 600        # 思考或正文累积字数
+
+                def _snapshot(force=False):
+                    nonlocal _snapshot_last, _snapshot_len
+                    grown = len(full_answer) + len(thinking_content) - _snapshot_len
+                    if not force and \
+                            time.monotonic() - _snapshot_last < _INTERVAL \
+                            and grown < _CHARS:
+                        return
+                    _snapshot_last = time.monotonic()
+                    _snapshot_len = len(full_answer) + len(thinking_content)
+                    try:
+                        conv_store.update_message(
+                            conv_id, assistant_msg_id, full_answer,
+                            sources=[], thinking_content=thinking_content,
+                            stage_detail=stage_detail,
+                        )
+                    except Exception as e:
+                        logger.warning("生成中快照保存失败: %s", e)
+
+                def _finalize():
+                    """生成结束(无论正常/异常)时的最终落库,带完整来源"""
+                    try:
+                        conv_store.update_message(
+                            conv_id, assistant_msg_id, full_answer,
+                            sources=sources_data, thinking_content=thinking_content,
+                            stage_detail=stage_detail,
+                        )
+                    except Exception as e:
+                        logger.warning("最终落库失败: %s", e)
+
+                def _put(item):
+                    fut = asyncio.run_coroutine_threadsafe(queue.put(item), loop)
+                    try:
+                        fut.result(timeout=5)  # 5秒超时防止死锁
+                    except Exception:
+                        return False  # 消费端(SSE 协程)已断开
+                    return True
+
                 try:
                     for item in rag_pipeline.ask_stream(
                         question=request.question,
@@ -164,20 +232,45 @@ async def chat(request: ChatRequest):
                         search_mode=request.search_mode,
                         request_id=request_id,
                     ):
-                        fut = asyncio.run_coroutine_threadsafe(queue.put(item), loop)
-                        try:
-                            fut.result(timeout=5)  # 5秒超时防止死锁
-                        except Exception:
-                            break  # 超时或取消，终止生成
+                        t = item.get("type")
+                        if t == "stage":
+                            if item.get("detail"):
+                                # 解构卡片数据只出现一次（analyze 完成时）
+                                stage_detail = item.get("detail")
+                        elif t == "thinking":
+                            if not thinking_content:
+                                # 首条思考内容立即落库,消除节流空窗
+                                _snapshot(force=True)
+                            thinking_content += item["content"]
+                            _snapshot()
+                        elif t == "token":
+                            if not full_answer and not thinking_content:
+                                # 首 token(含缓存命中直接返回全文)立即落库
+                                _snapshot(force=True)
+                            full_answer += item["content"]
+                            _snapshot()
+                        elif t == "done":
+                            sources_data = item.get("sources", [])
+                            # 附带给协程回显用:思考内容与字数
+                            # （协程已不再累积,值从线程带过去）
+                            item["thinking_content"] = thinking_content
+                            item["answer_len"] = len(full_answer)
+                        if not _put(item):
+                            break  # SSE 断开:停止转发,但最终落库照常执行
+                    _finalize()
                 except Exception as e:
-                    asyncio.run_coroutine_threadsafe(
-                        queue.put({"type": "error", "detail": str(e)}), loop
-                    )
+                    _finalize()  # 生成异常也落库已生成的部分
+                    _put({"type": "error", "detail": str(e)})
 
             thread = threading.Thread(target=run_generator, daemon=True)
             thread.start()
 
-            # 异步从队列读取（客户端断开时自动退出）
+            # 异步从队列读取并转发给前端。
+            # 数据累积与落库都在生成线程里,协程只做转发:
+            # 客户端刷新断开(CancelledError)时协程退出,线程照常落库,
+            # 完整回答不会丢。
+            had_thinking = False
+            thinking_done_sent = False
             try:
                 while True:
                     try:
@@ -185,12 +278,23 @@ async def chat(request: ChatRequest):
                             queue.get(), timeout=float(config.get("stream_timeout"))
                         )
                     except asyncio.TimeoutError:
-                        break  # 超时退出，不再等待
+                        # 持续无输出超过 stream_timeout:明确告知用户,
+                        # 而不是让前端永远停在"处理中"或静默结束。
+                        # 落库由生成线程负责,这里只通知前端。
+                        yield {
+                            "event": "error",
+                            "data": json.dumps({
+                                "detail": "生成超时,请重试(可尝试降低思考强度)"
+                            }, ensure_ascii=False),
+                        }
+                        return
                     if item["type"] == "done":
                         sources_data = item.get("sources", [])
                         search_refs = item.get("search_refs", [])
                         done_timings = item.get("timings") or {}
                         done_ref_report = item.get("ref_report") or {}
+                        done_thinking = item.get("thinking_content") or ""
+                        done_answer_len = item.get("answer_len") or 0
                         break
                     elif item["type"] == "error":
                         raise Exception(item.get("detail", "未知错误"))
@@ -215,81 +319,64 @@ async def chat(request: ChatRequest):
                             "data": json.dumps({"references": search_refs}, ensure_ascii=False),
                         }
                     elif item["type"] == "thinking":
-                        content = item["content"]
-                        thinking_content += content
+                        had_thinking = True
                         yield {
                             "event": "thinking",
-                            "data": json.dumps({"content": content}, ensure_ascii=False),
+                            "data": json.dumps({"content": item["content"]}, ensure_ascii=False),
                         }
                     elif item["type"] == "token":
-                        content = item["content"]
                         # 首个正文 token 意味着思考阶段结束，通知前端收起思考面板
-                        if thinking_content and not thinking_done_sent:
+                        if had_thinking and not thinking_done_sent:
                             thinking_done_sent = True
                             yield {"event": "thinking_done", "data": "{}"}
-                        full_answer += content
                         yield {
                             "event": "token",
-                            "data": json.dumps({"content": content}, ensure_ascii=False),
+                            "data": json.dumps({"content": item["content"]}, ensure_ascii=False),
                         }
             except asyncio.CancelledError:
-                # 客户端断开，停止读取
+                # 客户端断开:停止转发即可。生成线程会继续跑到结束并落库,
+                # 完整回答与来源不会因为刷新而丢失。
                 return
-
-            # 保存助手回答
-            source_items = []
-            for s in sources_data:
-                source_items.append(SourceItem(
-                    title=s.get("title", ""),
-                    author=s.get("author", ""),
-                    score=float(s.get("score", 0)),
-                    excerpt=s.get("excerpt", ""),
-                    source_url=s.get("source_url", ""),
-                    # 这两个字段是原文阅读器定位的依据，缺了来源卡片就跳不过去
-                    doc_uuid=s.get("doc_uuid", ""),
-                    source_file=s.get("source_file", ""),
-                ))
-            # 显式挂到本轮那条用户消息下：重新生成时激活叶子可能已被
-            # 别的请求改动，靠"接在末尾"会挂错位置
-            assistant_msg = conv_store.add_message(
-                conv_id, "assistant", full_answer, sources=source_items,
-                parent_id=user_msg_id, branch=branch,
-            )
 
             # 发送完成事件（含来源、联网搜索结果、conversation_id）
             # message_id / variant_* 让前端立刻能渲染版本切换器，
             # 不必再多请求一次对话详情。
             # timings 为本次请求各阶段耗时（总耗时/解构/检索/首 token/生成），
             # ref_report 为引用后处理的覆盖统计。
+            # 注意:最终落库已在生成线程的 _finalize() 完成,
+            # 这里不再写数据库。
             try:
                 from rag.telemetry import perf_recorder
                 if done_timings:
                     perf_recorder.record(done_timings)
             except Exception:
                 pass
+            # done_timings 在流超时/客户端断开时可能为 None,
+            # 统一用空字典兜底,避免完成日志本身崩溃
+            _timings = done_timings or {}
             logger.info("请求完成 [total=%.0fms analyze=%.0fms retrieve=%.0fms "
                         "first_token=%.0fms generate=%.0fms] [字数=%d]",
-                        done_timings.get("total_ms", 0),
-                        done_timings.get("analyze_ms", 0),
-                        done_timings.get("retrieve_ms", 0),
-                        done_timings.get("first_token_ms", 0),
-                        done_timings.get("generate_ms", 0),
-                        len(full_answer))
+                        _timings.get("total_ms", 0),
+                        _timings.get("analyze_ms", 0),
+                        _timings.get("retrieve_ms", 0),
+                        _timings.get("first_token_ms", 0),
+                        _timings.get("generate_ms", 0),
+                        done_answer_len)
 
             yield {
                 "event": "done",
                 "data": json.dumps({
                     "conversation_id": conv_id,
-                    "sources": [s.model_dump() for s in source_items],
+                    "sources": sources_data,
                     "references": search_refs,
-                    "thinking_content": thinking_content if effort != "off" else "",
-                    "message_id": assistant_msg.id,
+                    "thinking_content": done_thinking if effort != "off" else "",
+                    "message_id": assistant_msg_id,
                     "user_message_id": user_msg_id,
-                    "variant_count": assistant_msg.variant_count,
-                    "variant_index": assistant_msg.variant_index,
+                    "variant_count": assistant_variant_count,
+                    "variant_index": assistant_variant_index,
                     "request_id": request_id,
                     "timings": done_timings,
-                    "ref_report": done_ref_report,
+                    "ref_report": done_ref_report or {},
                 }, ensure_ascii=False),
             }
 
@@ -413,33 +500,78 @@ async def delete_conversation(conv_id: str):
 # 5. GET /api/models - 获取可用模型列表
 # ================================================================
 
-@router.get("/models", response_model=list[ModelOption])
+@router.get("/models")
 async def list_models():
-    """读取可用模型列表
+    """读取可用模型列表与当前生效模型
 
-    候选项来自设置项 model_list（落库为 .env 的 OPENAI_MODEL_LIST），
-    格式：id1:显示名1,id2:显示名2
-    留空时只返回当前正在使用的模型这一项。
+    返回 {current, models}:
+      current - 当前正在使用的模型 ID（设置页切换后写入 OPENAI_MODEL，
+                刷新页面后前端据此恢复选择,而不是默认选列表第一个）
+      models  - 候选模型列表。来自设置项 model_list（落库为 .env 的
+                OPENAI_MODEL_LIST），格式：id1:显示名1,id2:显示名2。
+                留空时只返回当前模型这一项。
     """
-    model_list_raw = config.get("model_list") or ""
-    if model_list_raw:
-        models = []
-        for item in model_list_raw.split(","):
-            item = item.strip()
-            if not item:
-                continue
-            if ":" in item:
-                mid, name = item.split(":", 1)
-                mid, name = mid.strip(), name.strip()
-            else:
-                mid, name = item, item
-            models.append(ModelOption(id=mid, name=name, provider="DeepSeek"))
-        if models:
-            return models
+    models = [
+        ModelOption(id=it["id"], name=it["name"], provider="DeepSeek")
+        for it in parse_model_list(config.get("model_list") or "")
+    ]
+    if not models:
+        # 没有配置候选列表，只显示当前模型
+        configured_model = config.get("model")
+        models = [ModelOption(id=configured_model, name=configured_model,
+                              provider="DeepSeek")]
+    return {
+        "current": config.get("model"),
+        "models": [m.model_dump() for m in models],
+    }
 
-    # 没有配置候选列表，只显示当前模型
-    configured_model = config.get("model")
-    return [ModelOption(id=configured_model, name=configured_model, provider="DeepSeek")]
+
+# ================================================================
+# 5b. POST /api/models - 添加模型(GUI 直接管理)
+# ================================================================
+
+@router.post("/models")
+async def add_model(req: ModelAddRequest):
+    """把模型追加到 OPENAI_MODEL_LIST(重复 id 则更新显示名)
+
+    添加后立即可在输入框的模型选择器中切换,无需重启。
+    """
+    model_id = (req.id or "").strip()
+    if not model_id:
+        raise HTTPException(status_code=400, detail="模型 ID 不能为空")
+    name = (req.name or "").strip() or model_id
+
+    items = parse_model_list(config.get("model_list") or "")
+    existed = any(it["id"] == model_id for it in items)
+    items = [it for it in items if it["id"] != model_id]
+    items.append({"id": model_id, "name": name})
+
+    config.update({"model_list": serialize_model_list(items)})
+    logger.info("模型列表: %s %s", "更新" if existed else "添加", model_id)
+    return {"ok": True, "added": not existed,
+            "models": parse_model_list(config.get("model_list") or "")}
+
+
+# ================================================================
+# 5c. DELETE /api/models/{model_id} - 移除模型
+# ================================================================
+
+@router.delete("/models/{model_id}")
+async def remove_model(model_id: str):
+    """从 OPENAI_MODEL_LIST 移除指定模型;当前正在使用的模型禁止移除"""
+    items = parse_model_list(config.get("model_list") or "")
+    kept = [it for it in items if it["id"] != model_id]
+    if len(kept) == len(items):
+        return {"ok": True, "removed": False,
+                "models": parse_model_list(config.get("model_list") or "")}
+    if model_id == config.get("model"):
+        raise HTTPException(status_code=400,
+                            detail="不能移除当前正在使用的模型")
+
+    config.update({"model_list": serialize_model_list(kept)})
+    logger.info("模型列表: 移除 %s", model_id)
+    return {"ok": True, "removed": True,
+            "models": parse_model_list(config.get("model_list") or "")}
 
 
 # ================================================================

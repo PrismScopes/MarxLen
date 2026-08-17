@@ -20,10 +20,6 @@ export const STORAGE_KEYS = {
   folders: 'folders',
   /** 对话 → 分组的映射 { convId: folderId } */
   convFolders: 'conv_folders',
-  /** 思考内容前缀，实际键为 thinking_<convId> */
-  thinkingPrefix: 'thinking_',
-  /** 问题解构结果前缀，实际键为 stage_detail_<convId> */
-  stageDetailPrefix: 'stage_detail_',
   /** 阅读器上次读到的位置 { source, seq } */
   readerLast: 'reader_last',
 };
@@ -47,22 +43,8 @@ export const MODE_DESCRIPTIONS = {
 /** 阅读器定位高亮的持续时间（毫秒） */
 export const READER_HIGHLIGHT_MS = 4000;
 
-/** 设置项分类的中文名 */
-export const CATEGORY_LABELS = {
-  general: '通用',
-  api: 'API 配置',
-  search: '检索',
-  about: '关于',
-};
-
 /** 历史对话列表一次拉取的条数 */
 export const HISTORY_LIMIT = 50;
-
-/** 单个对话最多保留多少条思考记录，超出后裁剪 */
-export const THINKING_MAX_ENTRIES = 100;
-
-/** 裁剪时保留最近的条数 */
-export const THINKING_KEEP_ENTRIES = 50;
 
 /** 输入框最大高度（像素），超过后内部滚动 */
 export const TEXTAREA_MAX_HEIGHT = 200;
