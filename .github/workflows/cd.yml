@@ -62,7 +62,7 @@ jobs:
       image: ${{ steps.meta.outputs.tags }}
     steps:
       - name: 检出代码
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: 登录 GitHub Container Registry
         uses: docker/login-action@v3
@@ -96,7 +96,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: 检出代码(取 CHANGELOG 与 tag 信息)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
