@@ -340,6 +340,16 @@ export function createChatController(refs, callbacks) {
           if (state.thinkingEffort !== 'off') {
             thinkingPanel.classList.add('visible');
             $('.thinking-process-body', thinkingPanel).textContent = thinkingText;
+            // 思考内容持续增长时自动跟随滚动:
+            // 1) 面板展开时,面板内部滚到底(内容在 320px 高的内部滚动区);
+            // 2) 消息区也跟随到底部,保证面板整体可见。
+            // 面板未展开时不动消息区,避免把折叠的思考块滚出视野。
+            // 只有用户切走时才跳过,避免打扰他在别处的浏览。
+            if (!muted && thinkingPanel.classList.contains('open')) {
+              const body = $('.thinking-process-body', thinkingPanel);
+              if (body) body.scrollTop = body.scrollHeight;
+              scrollToBottom(chatMessages);
+            }
           }
         } else if (event === 'thinking_done') {
           clearInterval(timer);
