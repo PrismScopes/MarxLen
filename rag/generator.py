@@ -55,13 +55,16 @@ class RAGPipeline:
 
         参数:
             index_dir: 知识库三件套所在目录。None 表示使用
-                rag/ 传统目录(与旧行为一致)。
-            kb_build_id: 知识库版本号(仅用于展示与热切换判定)。
+                rag/ 传统目录(裸装/测试兼容)。
+            kb_build_id: 知识库版本号。由入口(kb.resolve_index_dir)
+                解析后显式传入,传递给检索器——即使是 rag/ 传统目录,
+                只要已登记为 seed-v1,这里就是 "seed-v1" 而非 None。
         """
         self.config = get_config()
 
         logging.info("正在初始化检索器...")
-        self.retriever = HybridRetriever(index_dir=index_dir)
+        self.retriever = HybridRetriever(
+            index_dir=index_dir, kb_build_id=kb_build_id)
         self.kb_build_id = kb_build_id or getattr(
             self.retriever, "kb_build_id", None)
         if self.kb_build_id:
@@ -389,21 +392,28 @@ class RAGPipeline:
         search_context = ""
         search_refs = []
         if search_mode:
-            timer.start("search")
-            yield {"type": "stage", "stage": "search", "text": "正在联网搜索"}
-            body_len = int(self.config.get("web_search_excerpt"))
-            search_results = web_search(question)
-            search_context = format_search_results(search_results)
-            search_refs = [{"title": r["title"], "body": r["body"][:body_len], "url": r["href"]}
-                          for r in search_results if r.get("title")]
-            ms = timer.end("search")
-            # 搜索结果先行下发，前端可在正文生成前就展示参考链接
-            if search_refs:
-                yield {"type": "search_result", "references": search_refs}
-            yield {"type": "stage", "stage": "search", "status": "done",
-                   "elapsed_ms": round(ms, 1),
-                   "text": f"联网搜索完成，获取 {len(search_refs)} 条结果"}
-            logging.info("联网搜索完成: %d 条 (%.0fms)", len(search_refs), ms)
+            # 总开关:enable_search 关闭时前端即使点亮「联网搜索」也不执行,
+            # 明确告知用户而不是静默忽略
+            if not self.config.get("enable_search"):
+                yield {"type": "stage", "stage": "search", "status": "skipped",
+                       "text": "联网搜索未启用(可在设置-系统-对话中打开)"}
+                logging.info("联网搜索被总开关关闭,跳过")
+            else:
+                timer.start("search")
+                yield {"type": "stage", "stage": "search", "text": "正在联网搜索"}
+                body_len = int(self.config.get("web_search_excerpt"))
+                search_results = web_search(question)
+                search_context = format_search_results(search_results)
+                search_refs = [{"title": r["title"], "body": r["body"][:body_len], "url": r["href"]}
+                              for r in search_results if r.get("title")]
+                ms = timer.end("search")
+                # 搜索结果先行下发，前端可在正文生成前就展示参考链接
+                if search_refs:
+                    yield {"type": "search_result", "references": search_refs}
+                yield {"type": "stage", "stage": "search", "status": "done",
+                       "elapsed_ms": round(ms, 1),
+                       "text": f"联网搜索完成，获取 {len(search_refs)} 条结果"}
+                logging.info("联网搜索完成: %d 条 (%.0fms)", len(search_refs), ms)
 
         # 2. 格式化对话历史（轮数设为 0 表示不携带上下文）
         history_context = ""
@@ -422,6 +432,8 @@ class RAGPipeline:
         # 缓存里连同来源一起存，命中时来源要一并返回，
         # 否则正文有"参考自《xxx》"而来源卡片为空，前后不一致
         use_cache = bool(self.config.get("enable_answer_cache"))
+        # 版本键:已登记基线(seed-v1 / data-v2)用真实 build_id;
+        # 未登记的裸装才落到 legacy(历史缓存兼容,不是并行体系)。
         cache_kb = self.kb_build_id or "legacy"
         # 思考强度不同答案也不同,参与缓存键隔离;
         # off(默认)保持原键,历史缓存继续命中

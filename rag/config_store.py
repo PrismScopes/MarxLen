@@ -445,6 +445,13 @@ CONFIG_SCHEMA: List[ConfigItem] = [
         description="新对话启动时使用的模式",
     ),
     ConfigItem(
+        key="enable_search", type="boolean", default=False,
+        label="启用联网搜索", category="system", section="对话",
+        description="联网搜索依赖 DuckDuckGo 等第三方服务,在国内可能"
+                    "不稳定。默认关闭;需要时打开,并在输入框点亮"
+                    "「联网搜索」开关才会生效",
+    ),
+    ConfigItem(
         key="web_search_results", type="int", default=5,
         label="联网搜索结果数", category="system", section="对话", unit="条",
         description="启用联网搜索时抓取的网页数量",

@@ -36,13 +36,18 @@ class HybridRetriever:
     def __init__(self,
                  faiss_path: Optional[str] = None,
                  db_path: Optional[str] = None,
-                 index_dir: Optional[str] = None):
+                 index_dir: Optional[str] = None,
+                 kb_build_id: Optional[str] = None):
         """构造混合检索器
 
         参数:
             index_dir: 三件套(documents.db / faiss_index.idx /
                 bm25_index.pkl)所在目录。传了则忽略 faiss_path/db_path。
-                None 表示使用传统 rag/ 运行目录(与旧行为一致)。
+                None 表示使用传统 rag/ 运行目录(仅测试与裸装兼容)。
+            kb_build_id: 知识库版本标识。由入口(kb.resolve_index_dir)
+                解析后显式传入——即使是 rag/ 传统目录,只要它已被登记为
+                seed-v1 基线,这里就应拿到 "seed-v1",而不是让本类自己
+                推断为 None。不传时按目录名推断(测试/独立使用场景)。
             faiss_path / db_path: 兼容旧调用方式,仅 index_dir 为 None 时生效。
         """
         if index_dir is not None:
@@ -56,11 +61,14 @@ class HybridRetriever:
         self.faiss_path = faiss_path
         self.db_path = db_path
         self.bm25_path = os.path.join(self.index_dir, "bm25_index.pkl")
-        # 知识库版本标识:index_dir 为传统目录时是 None
-        self.kb_build_id = None
-        if os.path.normcase(os.path.abspath(self.index_dir)) != \
-                os.path.normcase(os.path.abspath(RAG_DIR)):
-            self.kb_build_id = os.path.basename(os.path.abspath(self.index_dir))
+        # 知识库版本标识:优先用调用方显式传入的 build_id
+        # (kb 解析出的 seed-v1 / data-v2 等);未传时按目录名推断,
+        # 传统 rag/ 目录则视为 None(裸装未登记状态)
+        self.kb_build_id = kb_build_id
+        if self.kb_build_id is None:
+            if os.path.normcase(os.path.abspath(self.index_dir)) != \
+                    os.path.normcase(os.path.abspath(RAG_DIR)):
+                self.kb_build_id = os.path.basename(os.path.abspath(self.index_dir))
         self.config = get_config()
 
         # 初始化嵌入缓存

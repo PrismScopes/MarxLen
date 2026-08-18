@@ -448,8 +448,8 @@ function initModeSwitcher() {
 /**
  * 绑定联网搜索开关。
  *
- * 思考强度不再有独立按钮:与模型合并在模型弹窗的"推理等级"面板
- * (见 renderModelModal / selectEffort,交互与 DSH 一致)。
+ * 联网搜索有后端总开关(enable_search):总开关关闭时,前端按钮可以
+ * 点亮但不会生效——点击时给出明确提示,引导去设置开启,而不是静默失败。
  */
 function initFeatureToggles() {
   /**
@@ -467,7 +467,18 @@ function initFeatureToggles() {
 
   sync(refs.searchToggle, state.searchMode, '关闭联网搜索', '联网搜索');
 
-  refs.searchToggle.addEventListener('click', () => {
+  refs.searchToggle.addEventListener('click', async () => {
+    // 总开关关闭时不允许点亮,引导用户去设置开启
+    if (!state.searchEnabled) {
+      showConfirmDialog({
+        title: '联网搜索未启用',
+        message: '该功能需要在设置中开启（设置 → 系统 → 对话 → 启用联网搜索），是否现在去设置？',
+        confirmText: '去设置',
+      }).then((go) => {
+        if (go) openSettings();
+      });
+      return;
+    }
     setSearchMode(!state.searchMode);
     sync(refs.searchToggle, state.searchMode, '关闭联网搜索', '联网搜索');
     updateModeDescription();
@@ -656,14 +667,20 @@ async function init() {
   });
 
   await loadModels();
-  // 应用后端配置的默认思考强度(仅当本地无记录时),刷新组合触发器
+  // 应用后端配置的默认思考强度(仅当本地无记录时),刷新组合触发器;
+  // 同时读取联网搜索总开关,关闭时前端按钮不允许点亮
   try {
     const settings = await api.getSettings();
-    const item = (settings.items || []).find((i) => i.key === 'thinking_effort');
-    if (item) {
-      applyDefaultThinkingEffort(item.value);
+    const items = settings.items || [];
+    const effortItem = items.find((i) => i.key === 'thinking_effort');
+    if (effortItem) {
+      applyDefaultThinkingEffort(effortItem.value);
       updateModelSelectorLabel();
       renderModelModal();
+    }
+    const searchItem = items.find((i) => i.key === 'enable_search');
+    if (searchItem) {
+      state.searchEnabled = searchItem.value === true || searchItem.value === 'true';
     }
   } catch (err) {
     console.warn('读取默认思考强度失败:', err);

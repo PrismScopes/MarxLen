@@ -48,14 +48,25 @@ async def lifespan(app: FastAPI):
     pipeline = None
     kb_watcher = None
     try:
-        # 版本化知识库:解析发布指针(data/releases.json),
-        # 尚无发布记录或解析失败时回退传统 rag/ 目录(与旧版行为一致)
+        # 版本化知识库:解析发布指针(data/releases.json)统一决定
+        # 索引目录与版本号——这是知识库的单一入口,retriever 不再自己
+        # 决定回退。无发布记录(裸装未登记)时 index_dir 为 None,
+        # 回退 rag/ 传统目录,但会在日志里明确提示登记基线;
+        # 指针损坏则保留回退并告警,不让服务起不来。
         index_dir = None
         kb_build_id = None
         if config.get("kb_enabled"):
             try:
                 from kb.release import resolve_index_dir
                 index_dir, kb_build_id = resolve_index_dir()
+                if index_dir is None or kb_build_id is None:
+                    logger.warning(
+                        "知识库尚未登记基线(无 data/releases.json 或指针为空)。"
+                        "正在使用 rag/ 传统目录,建议运行 kb seed 登记基线,"
+                        "以获得版本化更新能力")
+                else:
+                    logger.info("知识库版本: %s (index_dir=%s)",
+                                kb_build_id, index_dir)
             except Exception as e:
                 logger.warning(f"知识库版本解析失败,回退传统目录: {e}")
 

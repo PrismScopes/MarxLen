@@ -111,6 +111,8 @@ export const state = {
   thinkingEffort: readEffort('off'),
   /** 联网搜索开关（持久化，原版漏了这个） */
   searchMode: readBool(STORAGE_KEYS.searchMode, false),
+  /** 联网搜索总开关（后端 enable_search，启动时读取；关闭时前端不允许点亮） */
+  searchEnabled: false,
   /** 当前选中的模型 ID */
   currentModel: null,
   /** 可用模型列表 */
