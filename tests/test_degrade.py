@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from rag.generator import RAGPipeline
 
 pipe = RAGPipeline()
-pipe.answer_cache.get = lambda q: None
+pipe.answer_cache.get = lambda q, **kw: None
 
 def run(label, patch_target, patch_fn):
     orig = getattr(*patch_target)

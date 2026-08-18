@@ -63,7 +63,7 @@ def evaluate(build_id: str, index_dir: str, top_k: int = TOP_K) -> Dict:
     if not golden:
         logger.warning("golden 集为空（%s），评估跳过", GOLDEN_PATH)
         result = {"ok": None, "questions": 0, "note": "golden 集为空"}
-        _write_back(build_id, result)
+        _write_back(build_id, result, field="eval")
         return result
 
     from rag.retriever import HybridRetriever
@@ -102,7 +102,7 @@ def evaluate(build_id: str, index_dir: str, top_k: int = TOP_K) -> Dict:
     logger.info("评估完成: recall@%d=%.2f%% mrr=%.4f hit@1=%.2f%%",
                 top_k, result["recall_at_k"] * 100,
                 result["mrr"], result["hit_at_1"] * 100)
-    _write_back(build_id, result)
+    _write_back(build_id, result, field="eval")
     return result
 
 
@@ -138,14 +138,20 @@ def compare(new_eval: Optional[Dict], old_eval: Optional[Dict],
     }
 
 
-def _write_back(build_id: str, result: Dict):
+def _write_back(build_id: str, result: Dict, field: str = "eval"):
+    """把评估结果写入 build.json 的指定字段
+
+    field 用于区分两类评估,避免互相覆盖:
+      - "eval"     召回评估(evaluate):recall_at_k / mrr / hit_at_1
+      - "eval_gen" 生成评估(evaluate_generation):coverage / judge
+    """
     path = build_json_path(build_id)
     if not os.path.exists(path):
         logger.warning("build.json 不存在，评估结果未落盘: %s", path)
         return
     with open(path, "r", encoding="utf-8") as f:
         meta = json.load(f)
-    meta["eval"] = result
+    meta[field] = result
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
@@ -192,6 +198,9 @@ def evaluate_generation(build_id: str, index_dir: str,
     cfg = get_config()
     pipeline = RAGPipeline(index_dir=index_dir)
     judge = judge_model or cfg.get("model")
+
+    # 评估必须每次真实生成,禁用回答缓存(缓存命中会污染覆盖率统计)
+    pipeline.answer_cache.get = lambda q, **kw: None
 
     per_question = []
     coverage_hits = 0
@@ -268,5 +277,5 @@ def evaluate_generation(build_id: str, index_dir: str,
     logger.info("生成评估完成: 引用覆盖率=%.0f%% judge=%s",
                 result["coverage"]["with_citation"] * 100,
                 result["judge"])
-    _write_back(build_id, result)
+    _write_back(build_id, result, field="eval_gen")
     return result

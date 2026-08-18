@@ -82,7 +82,9 @@ with TestClient(app) as c:
     stats = c.get("/api/settings/stats").json()
     check("api/stats有文档数", stats.get("document_count", 0) > 0, str(stats))
 
-    check("api/models", c.get("/api/models").status_code == 200)
+    m = c.get("/api/models").json()
+    check("api/models返回结构", isinstance(m.get("current"), str) and isinstance(m.get("models"), list)
+          and len(m["models"]) > 0, str(m)[:100])
 
     # ============ 2. 普通问答 SSE ============
     print("\n[普通模式]")
@@ -129,6 +131,11 @@ with TestClient(app) as c:
     # ============ 6. 联网搜索事件契约（打桩，不依赖外网）============
     print("\n[联网搜索]")
     import rag.generator as g
+    # 总开关 enable_search 默认关闭,测试需先打开(runtime 值,不落盘)
+    from rag.config_store import get_config
+    _cfg = get_config()
+    _orig_search_cfg = _cfg.get("enable_search")
+    _cfg.update({"enable_search": True})
     _orig_ws, _orig_fmt = g.web_search, g.format_search_results
     g.web_search = lambda q, **k: [
         {"title": "T1", "body": "B1", "href": "http://a"},
@@ -144,6 +151,7 @@ with TestClient(app) as c:
         check("web/done含references", len(d.get("references", [])) == 2, str(d.get("references")))
     finally:
         g.web_search, g.format_search_results = _orig_ws, _orig_fmt
+        _cfg.update({"enable_search": _orig_search_cfg})
 
     # ============ 7. 缓存路径 ============
     print("\n[缓存命中]")

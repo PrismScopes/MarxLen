@@ -843,3 +843,25 @@ async def clear_cache(req: CacheClearRequest):
 async def get_stats():
     """获取知识库统计信息"""
     return settings_store.get_stats(rag_pipeline=rag_pipeline)
+
+
+# ================================================================
+# 12. POST /api/settings/backup - 备份用户数据
+# ================================================================
+
+@router.post("/settings/backup")
+async def create_backup():
+    """把用户数据(对话/配置/密钥/缓存)打包为带时间戳的 zip
+
+    返回 {ok, path, files, size}。备份文件落在项目根目录
+    backup_<时间戳>.zip,该目录已被 .gitignore 排除。
+    注意:备份包含 API 密钥,请妥善保管,勿外传。
+    """
+    try:
+        result = settings_store.backup(rag_pipeline=rag_pipeline)
+        if not result.get("ok"):
+            raise HTTPException(status_code=500, detail=result.get("error", "备份失败"))
+        return result
+    except Exception as e:
+        logger.exception("备份失败")
+        raise HTTPException(status_code=500, detail=f"备份失败: {e}")

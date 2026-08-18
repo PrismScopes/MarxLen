@@ -83,7 +83,7 @@ check("retr/降级路径可用", len(d2) > 0)
 
 # ============ 5. 端到端流式输出 ============
 print("\n端到端（普通模式）...")
-pipe.answer_cache.get = lambda q: None  # 绕过缓存，确保真实生成
+pipe.answer_cache.get = lambda q, **kw: None  # 绕过缓存，确保真实生成
 
 evts, answer = [], ""
 t0 = time.time()

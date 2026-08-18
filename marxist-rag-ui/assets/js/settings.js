@@ -657,11 +657,12 @@ function renderApiCategory(items, onChange, modelOptions) {
 }
 
 /**
- * 渲染"存储"分类：知识库统计 + 缓存清理。
+ * 渲染"存储"分类：知识库统计 + 缓存清理 + 数据备份。
  * @param {Function} onClearCache - 清理缓存回调
+ * @param {Function} onBackup - 备份数据回调
  * @returns {DocumentFragment}
  */
-function renderStorage(onClearCache) {
+function renderStorage(onClearCache, onBackup) {
   const frag = document.createDocumentFragment();
 
   const statsCard = document.createElement('div');
@@ -680,6 +681,17 @@ function renderStorage(onClearCache) {
     btn.addEventListener('click', () => onClearCache(type, btn));
     actions.appendChild(btn);
   });
+
+  // 数据备份:把对话/配置/密钥/缓存打包成 zip
+  if (onBackup) {
+    const backupBtn = document.createElement('button');
+    backupBtn.type = 'button';
+    backupBtn.className = 'settings-action-btn';
+    backupBtn.textContent = '备份数据';
+    backupBtn.title = '把对话、配置、密钥与缓存打包为 backup_时间戳.zip，保存在项目根目录';
+    backupBtn.addEventListener('click', () => onBackup(backupBtn));
+    actions.appendChild(backupBtn);
+  }
   frag.appendChild(actions);
 
   return frag;
@@ -854,6 +866,27 @@ export async function loadSettings(refs, onModelChange, modelOptions = [],
     setTimeout(() => { btn.textContent = original; btn.disabled = false; }, 1500);
   };
 
+  /**
+   * 备份用户数据(对话/配置/密钥/缓存)为 zip。
+   * @param {HTMLElement} btn - 触发按钮
+   */
+  const handleBackup = async (btn) => {
+    const original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '备份中...';
+    try {
+      const r = await api.backupData();
+      btn.textContent = '备份完成';
+      btn.title = `已生成: ${r.path}（${r.files.length} 个文件）`;
+      // 短暂提示后恢复
+      setTimeout(() => { btn.textContent = original; btn.disabled = false; }, 3000);
+    } catch (err) {
+      console.error('备份失败:', err);
+      btn.textContent = '备份失败';
+      setTimeout(() => { btn.textContent = original; btn.disabled = false; }, 2000);
+    }
+  };
+
   // 按 category 归类
   const grouped = {};
   items.forEach((item) => {
@@ -900,7 +933,7 @@ export async function loadSettings(refs, onModelChange, modelOptions = [],
     body.scrollTop = 0;
 
     if (category.id === '__storage__') {
-      body.appendChild(renderStorage(handleClearCache));
+      body.appendChild(renderStorage(handleClearCache, handleBackup));
       loadStats();
     } else if (category.id === '__about__') {
       body.appendChild(renderAbout());

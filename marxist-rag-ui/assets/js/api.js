@@ -221,6 +221,14 @@ export function clearCache(cacheType) {
 }
 
 /**
+ * 备份用户数据(对话/配置/密钥/缓存)为 zip。
+ * @returns {Promise<{ok: boolean, path: string, files: string[], size: number}>}
+ */
+export function backupData() {
+  return request('/settings/backup', jsonBody('POST', {}));
+}
+
+/**
  * 测试 API 连通性（可用未保存的输入值，先测后存）。
  * @param {Object} payload - { target, api_base_url, api_key, model }
  * @returns {Promise<Object>} - { ok, latency_ms, detail, models?, embedding_dim? }
