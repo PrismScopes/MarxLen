@@ -356,6 +356,17 @@ rag/.venv/Scripts/python tests/test_degrade.py
 
 每次 push 与 PR 会由 GitHub Actions 自动运行零依赖测试（后端 + 前端），见 `.github/workflows/ci.yml`。
 
+## 数据备份
+
+对话记录、配置与密钥都保存在本地文件。可在 **设置 → 存储 → 备份数据** 一键打包成 `backup_<时间戳>.zip`（保存在项目根目录），包含：
+
+- `conversations.db` — 全部对话与消息树
+- `config.json` — 用户配置
+- `rag/.env` — API 密钥与端点（**含敏感信息，请勿外传备份文件**）
+- 回答 / 嵌入缓存
+
+恢复方式：解压后按相同路径放回即可。建议定期备份。
+
 ## 常见问题
 
 **索引文件只有几百字节？**
