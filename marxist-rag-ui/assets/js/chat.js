@@ -13,7 +13,7 @@ import {
   state, isSwitchedAway,
 } from './store.js';
 import { STREAM_RENDER } from './config.js';
-import { $, $$, refreshIcons, scrollToBottom } from './dom-utils.js';
+import { $, $$, refreshIcons, scrollToBottom, isNearBottom } from './dom-utils.js';
 import { openReader } from './reader.js';
 import { composeWithQuotes, clearQuotes, hasQuotes } from './quote.js';
 import {
@@ -340,14 +340,16 @@ export function createChatController(refs, callbacks) {
           if (state.thinkingEffort !== 'off') {
             thinkingPanel.classList.add('visible');
             $('.thinking-process-body', thinkingPanel).textContent = thinkingText;
-            // 思考内容持续增长时自动跟随滚动:
-            // 1) 面板展开时,面板内部滚到底(内容在 320px 高的内部滚动区);
-            // 2) 消息区也跟随到底部,保证面板整体可见。
-            // 面板未展开时不动消息区,避免把折叠的思考块滚出视野。
-            // 只有用户切走时才跳过,避免打扰他在别处的浏览。
+            // 思考内容持续增长时自动跟随滚动,但只在用户本就在底部附近时
+            // 跟随——用户上划回看之前的内容时,绝不强制拉回底部。
+            // 1) 面板展开时,面板内部滚动区同理:用户接近底部才滚到底;
+            // 2) 消息区由 scrollToBottom 自带的 isNearBottom 保护。
+            // 只有用户切走时才整体跳过。
             if (!muted && thinkingPanel.classList.contains('open')) {
               const body = $('.thinking-process-body', thinkingPanel);
-              if (body) body.scrollTop = body.scrollHeight;
+              if (body && isNearBottom(body)) {
+                body.scrollTop = body.scrollHeight;
+              }
               scrollToBottom(chatMessages);
             }
           }
